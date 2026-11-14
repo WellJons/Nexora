@@ -8,4 +8,6 @@ if(!(Test-Path $iscc)){throw 'Inno Setup 6.6+ is required to build the installer
 if($LASTEXITCODE -ne 0){throw "Installer compilation failed ($LASTEXITCODE)"}
 $exe=Join-Path $root "dist\installer\Nexora-Setup-$version-x64.exe"
 if(!(Test-Path $exe)){throw 'Setup output missing'}
-(Get-FileHash $exe -Algorithm SHA256).Hash.ToLower() + '  ' + [IO.Path]::GetFileName($exe) | Set-Content -Encoding ascii "$exe.sha256"
+$sha=[Security.Cryptography.SHA256]::Create();$stream=[IO.File]::OpenRead($exe)
+try{$digest=([BitConverter]::ToString($sha.ComputeHash($stream))).Replace('-','').ToLowerInvariant()}finally{$stream.Dispose();$sha.Dispose()}
+[IO.File]::WriteAllText("$exe.sha256",$digest+'  '+[IO.Path]::GetFileName($exe)+[Environment]::NewLine,[Text.Encoding]::ASCII)

@@ -1,0 +1,19 @@
+const {randomUUID}=require('node:crypto');
+const valid=v=>typeof v==='number'&&Number.isFinite(v)&&v>=0;
+function average(values){const numbers=values.filter(valid);return numbers.length?Math.round(numbers.reduce((a,b)=>a+b,0)/numbers.length*10)/10:null}
+function historySummary(rows){const byGame=new Map();let seconds=0;for(const r of rows){if(!valid(r.seconds)||typeof r.gameId!=='string')continue;seconds+=r.seconds;const v=byGame.get(r.gameId)||{gameId:r.gameId,name:r.name,seconds:0,count:0};v.seconds+=r.seconds;v.count++;byGame.set(r.gameId,v)}return {seconds,count:rows.length,games:[...byGame.values()].sort((a,b)=>b.seconds-a.seconds)}}
+function createTracker({bridge,monitor,getHistory,saveHistory,send,clock=Date.now,interval=5000}){
+ let active=null,timer=null,busy=false,pending=null,lastWarning='';
+ const state=()=>({active:active?{gameId:active.gameId,name:active.name,pid:active.pid,started:active.started,seconds:active.seconds,priority:active.priority,boosted:active.boosted,cpu:average(active.samples.map(x=>x.cpu)),gpu:average(active.samples.map(x=>x.gpu)),ram:average(active.samples.map(x=>x.ram)),temp:average(active.samples.map(x=>x.temp)),samples:active.samples.length}:null,history:getHistory().slice(0,100),summary:historySummary(getHistory()),busy,warning:lastWarning});
+ function publish(){const v=state();send(v);return v}
+ function apply(info){if(!active||!info)return;active.seconds=valid(info.seconds)?Math.max(active.seconds,info.seconds):active.seconds;active.priority=info.priority;active.boosted=!!info.boosted;if(info.warning)lastWarning=info.warning}
+ function record(reason){const s=active;if(!s)return;active=null;clearInterval(timer);timer=null;const entry={id:randomUUID(),gameId:s.gameId,name:s.name,started:s.started,ended:new Date(clock()).toISOString(),seconds:s.seconds,reason,boostRequested:s.boostRequested,cpu:average(s.samples.map(x=>x.cpu)),gpu:average(s.samples.map(x=>x.gpu)),ram:average(s.samples.map(x=>x.ram)),temp:average(s.samples.map(x=>x.temp)),samples:s.samples.length};if(s.seconds>=1)saveHistory([entry,...getHistory()].slice(0,1000))}
+ async function tick(){if(!active||busy||pending)return;const s=active;pending=(async()=>{try{const info=await bridge.request('play-sample');if(active!==s)return;apply(info);if(!info.running){await bridge.request('play-stop');record('game-exited');return}
+ let hw;try{hw=await monitor.sample()}catch{}if(active!==s)return;if(hw){const gpu=hw.gpus?.find(x=>valid(x.load));s.samples.push({cpu:hw.cpu?.load,gpu:gpu?.load,ram:hw.ram?.load,temp:hw.cpu?.temperature});if(s.samples.length>720)s.samples.shift()}
+ }catch(e){lastWarning='Потеряна связь с трекером: '+(e.message||e);record('interrupted')}finally{pending=null;publish()}})();return pending}
+ async function start(game,scope,pid,boost){if(active||busy)throw Error('Сначала завершите текущую сессию');if(!Number.isSafeInteger(pid)||pid<=4||typeof boost!=='boolean')throw Error('Выберите процесс игры');busy=true;lastWarning='';publish();try{const info=await bridge.request('play-start',{...scope,pid,boost});active={gameId:game.id,name:game.name,pid,started:new Date(clock()).toISOString(),seconds:0,priority:null,boosted:false,boostRequested:boost,samples:[]};apply(info);timer=setInterval(tick,interval);return state()}finally{busy=false;publish()}}
+ async function stop(){if(!active)return state();if(busy)throw Error('Дождитесь завершения операции');busy=true;publish();try{if(pending)await pending;if(!active)return state();const result=await bridge.request('play-stop');apply(result.sample);if(result.warning)lastWarning=result.warning;record('manual')}catch(e){lastWarning='Не удалось завершить сессию штатно: '+(e.message||e);record('interrupted')}finally{busy=false;publish()}return state()}
+ function shutdown(){return stop()}
+ return {start,stop,shutdown,state,tick};
+}
+module.exports={average,historySummary,createTracker};

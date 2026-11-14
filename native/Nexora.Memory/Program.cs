@@ -253,20 +253,25 @@ internal static class Program
             try{if(h==0)return 6;Marshal.WriteInt32(ptr,13);var b=new byte[4];if(!Win.ReadProcessMemory(h,ptr,b,4,out var r)||r!=4||BitConverter.ToInt32(b)!=13)return 7;if(!Win.WriteProcessMemory(h,ptr,BitConverter.GetBytes(42),4,out var w)||w!=4||Marshal.ReadInt32(ptr)!=42)return 8;}finally{if(h!=0)Win.CloseHandle(h);Marshal.FreeHGlobal(ptr);}
             if(!Scanner.SelfTestWatch())return 9;
             if(!Cleanup.SelfTest())return 10;
+            if(!PlaySession.SelfTest())return 15;
             Console.WriteLine("Nexora native self-test passed.");return 0;
         }
         using var scanner=new Scanner();
+        using var play=new PlaySession();
         while(true){
             var input=Task.Run(()=>Console.ReadLine());
-            while(!input.Wait(400))scanner.Tick();
+            while(!input.Wait(400)){scanner.Tick();play.Tick();}
             string? line=input.GetAwaiter().GetResult();
             if(line==null)break;
-            scanner.Tick();
+            scanner.Tick();play.Tick();
             try{
             if(line.Length>32768)throw new Exception("Request too large.");
             using var doc=JsonDocument.Parse(line);var j=doc.RootElement;
             object? data=S(j,"op") switch {
                 "window-info"=>WindowInfo.Get(S(j,"handle")),
+                "play-start"=>play.Start(j.GetProperty("pid").GetInt32(),S(j,"root"),j.GetProperty("exact").GetBoolean(),j.GetProperty("boost").GetBoolean()),
+                "play-sample"=>play.Sample(),
+                "play-stop"=>play.Stop(),
                 "list"=>Scanner.Processes(S(j,"root"),j.GetProperty("exact").GetBoolean()),
                 "attach"=>scanner.Attach(j.GetProperty("pid").GetInt32(),S(j,"root"),j.GetProperty("exact").GetBoolean()),
                 "scan"=>scanner.Scan(S(j,"kind"),N(j,"value")),
