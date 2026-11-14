@@ -2,7 +2,7 @@ const {app,BrowserWindow,ipcMain,dialog,shell,session}=require('electron');
 const fs=require('node:fs'),path=require('node:path');
 const {execFileSync,spawn}=require('node:child_process');
 const {randomUUID}=require('node:crypto');
-const {discoverSteam,mergeGames,copySave}=require('./core.cjs');
+const {discoverSteam,mergeGames}=require('./core.cjs');
 const mods=require('./mods.cjs');
 const manager=require('./manager.cjs');
 const {makeMonitor}=require('./performance.cjs');
@@ -16,7 +16,7 @@ let saveBusy=false;
 async function saveExclusive(fn){if(saveBusy)throw Error('Дождитесь завершения операции с сохранениями');saveBusy=true;try{return await fn()}finally{saveBusy=false}}
 let managerBusy=false;
 async function exclusive(fn){if(managerBusy)throw Error('Дождитесь завершения другой операции с модами');managerBusy=true;try{return await fn()}finally{managerBusy=false}}
-let win,state={manual:[],favorites:[],history:[],backups:[],downloads:[],installedMods:[],profiles:[],launchLog:[],},games=[];
+let win,state={manual:[],favorites:[],history:[],backups:[],downloads:[],installedMods:[],profiles:[],launchLog:[]},games=[];
 const config=()=>path.join(app.getPath('userData'),'library.json');
 function persist(){const p=config();fs.mkdirSync(path.dirname(p),{recursive:true});fs.writeFileSync(p+'.tmp',JSON.stringify(state,null,2));fs.renameSync(p+'.tmp',p)}
 function load(){try{const v=JSON.parse(fs.readFileSync(config(),'utf8'));for(const key of Object.keys(state))if(Array.isArray(v[key]))state[key]=v[key]}catch{}}

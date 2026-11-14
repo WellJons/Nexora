@@ -22,6 +22,7 @@ internal static class Win
     [DllImport("kernel32.dll", SetLastError=true)] [return:MarshalAs(UnmanagedType.Bool)] internal static extern bool ReadProcessMemory(nint handle, nint address, [Out] byte[] buffer, nuint size, out nuint read);
     [DllImport("kernel32.dll", SetLastError=true)] [return:MarshalAs(UnmanagedType.Bool)] internal static extern bool WriteProcessMemory(nint handle, nint address, byte[] buffer, nuint size, out nuint written);
     [DllImport("kernel32.dll", SetLastError=true, CharSet=CharSet.Unicode)] [return:MarshalAs(UnmanagedType.Bool)] internal static extern bool QueryFullProcessImageName(nint handle, uint flags, StringBuilder path, ref uint length);
+    [DllImport("kernel32.dll", SetLastError=true)] [return:MarshalAs(UnmanagedType.Bool)] internal static extern bool GetExitCodeProcess(nint handle, out uint exitCode);
     internal static bool Writable(Region r) => r.State==0x1000 && r.Type==0x20000 && (r.Protect & 0x100)==0 && (r.Protect & 0xff)==0x04;
     internal static bool Query(nint h, long a, out Region r) => VirtualQueryEx(h,(nint)a,out r,(nuint)Marshal.SizeOf<Region>())!=0;
     internal static string Image(nint h) { var s=new StringBuilder(32768);uint n=(uint)s.Capacity;if(!QueryFullProcessImageName(h,0,s,ref n))throw new Exception("Cannot verify game executable.");return s.ToString(); }
@@ -67,7 +68,7 @@ internal sealed class Scanner : IDisposable
         try{if(!Match(Win.Image(h),root,exact))throw new Exception("Process identity changed.");handle=h;pid=id;return new{pid=id,name=p.ProcessName};}
         catch{Win.CloseHandle(h);throw;}
     }
-    private void Require(){if(handle==0)throw new Exception("No game session. Select a running game.");}
+    private void Require(){if(handle==0)throw new Exception("No game session. Select a running game.");if(!Win.GetExitCodeProcess(handle,out var code)||code!=259){Dispose();throw new Exception("The game has exited. End the session and select it again.");}}
     internal static int Encode(string type,double v){
         if(!double.IsFinite(v))throw new Exception("Value must be finite.");
         return type switch {
@@ -120,7 +121,7 @@ internal sealed class Scanner : IDisposable
     {
         Require();var rows=new List<object>();
         foreach(long a in hits.Take(100)){if(Read(a,out var bits)){
-            double v=kind=="int32"?bits:BitConverter.Int32BitsToSingle(bits);
+            double v=kind=="int32"?(double)bits:BitConverter.Int32BitsToSingle(bits);
             rows.Add(new {address=a.ToString("X"),value=double.IsFinite(v)?(double?)v:null});
         }}
         return new{pid,kind,total=hits.Count,limited,readBytes,rows,scanned};
@@ -144,7 +145,7 @@ internal static class Program
     {
         if(!OperatingSystem.IsWindows()||!Environment.Is64BitProcess)return 2;
         if(args.Length==1&&args[0]=="--self-test"){
-            if(Marshal.SizeOf<Win.Region>()!=48||Scanner.Encode("float32",1.5)!=BitConverter.SingleToInt32Bits(1.5f))return 3;
+            if(Marshal.SizeOf<Win.Region>()!=48||Scanner.Encode("int32",int.MaxValue)!=int.MaxValue||Scanner.Encode("float32",1.5)!=BitConverter.SingleToInt32Bits(1.5f))return 3;
             var buffer=new byte[12];BinaryPrimitives.WriteInt32LittleEndian(buffer.AsSpan(4),123456);var list=new List<long>();Scanner.Collect(buffer,12,100,123456,list,10);if(list.Count!=1||list[0]!=104)return 4;
             if(Scanner.Match(@"C:\games2\test.exe",@"C:\games",false)||!Scanner.Match(@"C:\games\test.exe",@"C:\games",false)||Scanner.Match(@"C:\games\EasyAntiCheat.exe",@"C:\games",false))return 5;
             nint ptr=Marshal.AllocHGlobal(4),h=Win.OpenProcess(Win.QueryReadWrite,false,Environment.ProcessId);

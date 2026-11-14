@@ -1,10 +1,5 @@
 const $=s=>document.querySelector(s);
 const content=$('#content');let data={games:[],favorites:[],history:[],backups:[],downloads:[],installedMods:[],profiles:[],launchLog:[],engines:[],tables:[]},page='home',selected='steam:4358690',query='',timer;
-const plans={
- 'steam:4358690':['Бессмертие','Бесконечная энергия','Бесконечные ресурсы','Мгновенное создание предметов','Неограниченные деньги','Скорость игры'],
- 'steam:1091500':['Бессмертие','Бесконечные патроны','Неограниченные деньги','Опыт персонажа'],
- 'steam:1086940':['Здоровье персонажей','Очки действий','Золото','Опыт персонажей']
-};
 function el(tag,cls,txt){const x=document.createElement(tag);if(cls)x.className=cls;if(txt!==undefined)x.textContent=txt;return x}
 function button(text,cls,onClick,disabled=false){const x=el('button',cls,text);x.disabled=disabled;x.addEventListener('click',onClick);return x}
 function toast(message){const t=$('#toast');t.textContent=message;t.hidden=false;clearTimeout(timer);timer=setTimeout(()=>t.hidden=true,4200)}
@@ -13,8 +8,8 @@ function heading(k,title,sub){const box=el('section');box.append(el('div','eyebr
 function section(title,desc){const h=el('div','sectionhead');h.append(el('h2','',title),el('p','',desc));content.append(h)}
 function card(g){const wrap=el('article','game'+(selected===g.id?' selected':''));const cover=button('','cover',()=>{selected=g.id;render()});cover.setAttribute('aria-label','Выбрать '+g.name);cover.style.setProperty('--cover',g.color||'#43415f');cover.append(el('span','fallback',g.name));if(/^steam:\d+$/.test(g.id)){const img=el('img');img.alt='';img.src='https://cdn.cloudflare.steamstatic.com/steam/apps/'+g.id.slice(6)+'/library_600x900.jpg';img.addEventListener('error',()=>img.remove(),{once:true});cover.append(img)}
  cover.append(el('span','status'+(g.installed?' installed':''),g.installed?'● Установлена':'Каталог'));wrap.append(cover);const fav=data.favorites.includes(g.id);const star=button(fav?'★':'☆','star'+(fav?' on':''),()=>action(()=>window.nexora.favorite(g.id)));star.setAttribute('aria-label',fav?'Убрать из избранного':'В избранное');star.setAttribute('aria-pressed',String(fav));wrap.append(star);const info=el('div','gameinfo');info.append(el('strong','',g.name),el('small','',g.genre||(g.kind==='local'?'Локальная игра':g.kind==='epic'?'Epic Games':'Steam')));wrap.append(info);return wrap}
-function detail(g){const box=el('section','detail');const top=el('div','detailhead');const labels=el('div');labels.append(el('div','eyebrow','ИГРОВОЙ ПРОФИЛЬ'),el('h2','',g.name),el('p','',g.installed?'Игра обнаружена · трейнер не подключён':'Игра из каталога · не установлена'));const actions=el('div','actions');actions.append(button('Профиль','secondary',()=>{page='profiles';render()}),button('Резервная копия','secondary',()=>action(()=>window.nexora.backup(g.id))),button('▶ Запустить','primary',()=>action(()=>window.nexora.launch(g.id),'Команда запуска отправлена'),!g.installed));top.append(labels,actions);const body=el('div','detailbody');const quick=el('div','profilequick');quick.append(button('Редактор значений','secondary',()=>{page='trainers';render()}),button('Папка игры','secondary',()=>action(()=>window.nexora.gameFolder(g.id)),!g.installed));body.append(quick,el('div','notice','Готовые пресеты пока недоступны. В разделе «Трейнеры» можно искать и менять значения вручную.'));
- const mods=plans[g.id]||['Здоровье','Ресурсы','Скорость игры'];mods.forEach((name,i)=>{const row=el('div','mod'),right=el('div','modright');row.append(el('span','',name));const key=el('kbd','','F'+(i+1));const sw=button('','switch',()=>{},true);sw.setAttribute('aria-label',name+' — недоступно');right.append(key,sw);row.append(right);body.append(row)});box.append(top,body);content.append(box)}
+function detail(g){const box=el('section','detail');const top=el('div','detailhead');const labels=el('div');labels.append(el('div','eyebrow','ИГРОВОЙ ПРОФИЛЬ'),el('h2','',g.name),el('p','',g.installed?'Игра обнаружена · редактор доступен':'Игра из каталога · не установлена'));const actions=el('div','actions');actions.append(button('Профиль','secondary',()=>{page='profiles';render()}),button('Резервная копия','secondary',()=>action(()=>window.nexora.backup(g.id))),button('▶ Запустить','primary',()=>action(()=>window.nexora.launch(g.id),'Команда запуска отправлена'),!g.installed));top.append(labels,actions);const body=el('div','detailbody');const quick=el('div','profilequick');quick.append(button('Редактор значений','secondary',()=>{page='trainers';render()}),button('Папка игры','secondary',()=>action(()=>window.nexora.gameFolder(g.id)),!g.installed));body.append(quick,el('div','notice','Готовые пресеты пока недоступны. В разделе «Трейнеры» можно искать и менять значения вручную.'));
+box.append(top,body);content.append(box)}
 const modState={q:'',game:'',loader:'',results:null,error:'',loading:false,project:null,versions:[],version:null,busy:false};
 let modEpoch=0;
 function drawMods(){if(page==='mods')render()}
@@ -73,7 +68,7 @@ function performancePage(){
  for(const g of gpus){const panel=el('section','perfdevice');panel.append(el('h2','',g.name));const stats=el('div','perfgrid');stats.append(metric('НАГРУЗКА',fmt(g.load,'%'),'GPU'),metric('ТЕМПЕРАТУРА',fmt(g.temperature,'°C'),'GPU'),metric('ВИДЕОПАМЯТЬ',typeof g.vramUsed==='number'?(g.vramUsed/1024).toFixed(1)+' ГБ':'—',typeof g.vramTotal==='number'?'Всего '+(g.vramTotal/1024).toFixed(1)+' ГБ':'Объём неизвестен'));panel.append(stats);content.append(panel)}
  const note=el('div','notice','FPS и внутриигровой оверлей пока не реализованы. Доступность температур и загрузки GPU зависит от оборудования и драйверов.');content.append(note);
 }
-let editProfile=null,profileSaving=false,trainerBusy=false;
+let editProfile=null,profileSaving=false;
 function gamePicker(onChange){const select=el('select','modinput profilepicker');select.setAttribute('aria-label','Выбрать игру');for(const game of data.games){const opt=el('option','',game.name);opt.value=game.id;select.append(opt)}select.value=selected;if(!select.value&&data.games[0]){selected=data.games[0].id;select.value=selected}select.addEventListener('change',()=>{selected=select.value;onChange()});return select}
 function profilePage(){
  heading('GAME WORKSPACE','Мои профили','Личные заметки, задачи и история запусков для каждой игры.');
@@ -95,9 +90,10 @@ function readNumber(v){if(!String(v).trim())throw Error('Введите числ
 function trainerPage(){
  heading('NEXORA ENGINE','Трейнеры','Встроенный редактор игровых значений. Ничего отдельно устанавливать не нужно.');
  if(!data.games.length){content.append(el('div','empty','Добавьте игру.'));return}
+ if(memory.session&&!memory.busy)selected=memory.gameId;
  if(memory.gameId!==selected&&!memory.session&&!memory.busy)memoryReset();
  const b=el('section','modhero');b.append(el('div','eyebrow','MEMORY LAB · LOCAL'),el('h2','','Управляй игровыми значениями'),el('p','','Только одиночные игры без античита. Сначала запусти игру и загрузи сохранение.'));
- const picker=gamePicker(()=>{memoryTask(async()=>{await window.nexora.memoryDetach();memoryReset();})});picker.disabled=memory.busy; b.append(picker);
+ const picker=gamePicker(()=>{const chosen=selected;memoryTask(async()=>{await window.nexora.memoryDetach();selected=chosen;memoryReset();})});picker.disabled=memory.busy; b.append(picker);
  const g=data.games.find(x=>x.id===selected);const controls=el('div','profilequick');
  controls.append(button('Найти процесс','secondary',()=>memoryTask(async()=>{memory.processes=await window.nexora.memoryList(selected);memory.pid=memory.processes[0]?.pid??null;if(!memory.processes.length)toast('Запущенная игра не найдена')}),memory.busy||!g?.installed||!!memory.session));
  if(memory.processes.length&&!memory.session){const p=el('select','modinput');p.setAttribute('aria-label','Процесс игры');for(const x of memory.processes){const o=el('option','',x.name+' · PID '+x.pid);o.value=String(x.pid);p.append(o)}p.value=String(memory.pid);p.disabled=memory.busy;p.addEventListener('change',()=>memory.pid=Number(p.value));controls.append(p,button('Начать сессию','primary',()=>memoryTask(async()=>{const s=await window.nexora.memoryAttach(selected,memory.pid);if(s){memory.session=s;memory.gameId=selected;memory.result=null;memory.address=null;}}),memory.busy||!memory.pid))}
