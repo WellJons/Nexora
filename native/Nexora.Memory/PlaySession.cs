@@ -38,7 +38,7 @@ internal sealed class PlaySession : IDisposable
         if(Alive()&&GetPriorityClass(handle)==AboveNormal&&!SetPriorityClass(handle,Normal))
             warning="Could not restore game priority; restore Normal in Task Manager or close the game.";
     }
-    internal void Tick(){if(handle==0)return;if(!Alive()||watch.Elapsed>=TimeSpan.FromMinutes(30))Restore();}
+    internal void Tick(){if(handle==0)return;if(!Alive()){watch.Stop();Restore();}else if(watch.Elapsed>=TimeSpan.FromMinutes(30))Restore();}
     internal object Sample()
     {
         if(handle==0)throw new Exception("No tracked process.");
