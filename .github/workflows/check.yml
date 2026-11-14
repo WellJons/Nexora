@@ -42,8 +42,15 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Local model runtime failed' }
           & ./dist/Nexora-win32-x64/resources/app/native-bin/Nexora.Memory.exe --self-test
           if ($LASTEXITCODE -ne 0) { throw 'Native self-test failed' }
+      - name: Build CI-only native fixture outside application bundle
+        run: dotnet publish test/fixtures/Nexora.TrainingFixture/Nexora.TrainingFixture.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o dist/test-fixture
       - name: Verify real cross-process trainer on owned training fixture
-        run: node scripts/training-smoke.cjs ./dist/Nexora-win32-x64/resources/app
+        run: node scripts/training-smoke.cjs ./dist/Nexora-win32-x64/resources/app ./dist/test-fixture/Nexora.TrainingFixture.exe
+      - name: Ensure training fixture is excluded from distributable
+        shell: pwsh
+        run: |
+          $files = Get-ChildItem dist/Nexora-win32-x64 -Recurse -File | Where-Object { $_.Name -in @('training-demo.cjs','training-fixture.cjs','Nexora.TrainingFixture.exe') }
+          if ($files) { throw 'Test-only fixture leaked into distributable' }
       - name: Verify graphical application startup and navigation
         shell: pwsh
         run: ./scripts/ui-smoke.ps1

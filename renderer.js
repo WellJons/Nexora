@@ -156,18 +156,8 @@ function sessionPanel(body){
  if(watches.length){const a=el('div','profilequick');a.append(button('Обновить значения','secondary',()=>memoryTask(async()=>{memory.result=await window.nexora.memoryResults()}),memory.busy),button('Остановить заморозку','secondary',()=>memoryTask(async()=>{memory.result=await window.nexora.memoryStopAll()}),memory.busy||!watches.some(w=>w.frozen)));section.append(a)}
  body.append(section);
 }
-let demoUI={state:{running:false,gold:null,health:null,verified:false,error:''},loaded:false,busy:false};
-async function demoAction(op){if(demoUI.busy)return;demoUI.busy=true;render();try{demoUI.state=await window.nexora.demoAction(op)}catch(e){demoUI.state=await window.nexora.demoState().catch(()=>({running:false,error:e.message}));toast(e.message)}finally{demoUI.busy=false;if(page==='trainers')render()}}
-function demoPanel(){const b=el('section','demoarena');const head=el('div','demohead'),title=el('div');title.append(el('div','eyebrow','NEXORA LAB / SANDBOX'),el('h2','','Тренировочная арена'),el('p','','Проверка встроенного движка без настоящей игры. Не затрагивает сохранения.'));head.append(title,el('span','demo-badge',demoUI.state.running?'● Активна':'TEST MODE'));b.append(head);
- if(!demoUI.loaded){demoUI.loaded=true;window.nexora.demoState().then(v=>{demoUI.state=v;if(page==='trainers')render()}).catch(()=>{})}
- const s=demoUI.state,grid=el('div','demo-stats');for(const [tag,val,cls] of [['ЗОЛОТО',s.gold,'gold'],['ЗДОРОВЬЕ',s.health,'health']]){const item=el('div','demo-stat '+cls);item.append(el('small','',tag),el('strong','',val===null||val===undefined?'—':val.toLocaleString('ru-RU')));grid.append(item)}b.append(grid);
- const buttons=el('div','profilequick');if(!s.running)buttons.append(button('▶ Запустить арену','primary',()=>demoAction('start'),demoUI.busy));else{buttons.append(button('Получить золото','secondary',()=>demoAction('earn'),demoUI.busy),button('Получить урон','secondary',()=>demoAction('hit'),demoUI.busy),button('Восстановиться','secondary',()=>demoAction('heal'),demoUI.busy),button('Закрыть арену','secondary',()=>demoAction('stop'),demoUI.busy))}b.append(buttons);
- const preset=el('div','demo-preset'),words=el('div');words.append(el('strong','','Много золота'),el('small','','Настоящий поиск и запись в собственный тестовый процесс'));preset.append(words,button(demoUI.busy?'Обработка…':'Активировать','primary',()=>demoAction('gold'),demoUI.busy||!s.running));b.append(preset);
- if(s.verified)b.append(el('p','memorylive','● Запись проверена: тестовый процесс подтвердил результат.'));if(s.error)b.append(el('div','notice',s.error));
- return b}
 function trainerPage(){
  heading('NEXORA ENGINE','Трейнеры','Встроенный редактор игровых значений. Ничего отдельно устанавливать не нужно.');
- content.append(demoPanel());
  if(!data.games.length){content.append(el('div','empty','Добавьте игру.'));return}
  if(memory.session&&!memory.busy)selected=memory.gameId;
  if(memory.gameId!==selected&&!memory.session&&!memory.busy)memoryReset();
@@ -296,7 +286,7 @@ function render(){if(page!=='performance')stopPerf();content.replaceChildren();d
  if(page==='downloads'){downloads();return}
  if(page==='manager'){managedPage();return}
  if(page==='saves'){savePage();return}
- if(page==='settings'){heading('PREFERENCES','Настройки','Nexora работает локально, не требует аккаунта.');for(const [a,b] of [['Версия','0.24.0 · Alpha'],['Интерфейс','Русский · Midnight Violet'],['Данные','Библиотека и резервные копии хранятся в папке данных приложения.'],['Трейнеры','Встроенный редактор и сессионные трейнеры. Личные шаблоны сохраняются; готовые пресеты и импорт CT пока недоступны.']]){const item=el('section','setting');item.append(el('h2','',a),el('p','',b));content.append(item)}const motion=el('section','setting motion-setting'),text=el('div');text.append(el('h2','','Анимации'),el('p','','Плавные переходы и эффекты при взаимодействии. Системная настройка уменьшения движения учитывается.'));const toggle=button(window.nexoraDesign.motionEnabled()?'Включены':'Отключены','motion-toggle'+(window.nexoraDesign.motionEnabled()?' on':''),()=>{window.nexoraDesign.setMotion(!window.nexoraDesign.motionEnabled());render()});toggle.setAttribute('role','switch');toggle.setAttribute('aria-checked',String(window.nexoraDesign.motionEnabled()));motion.append(text,toggle);content.append(motion,releasePanel());return}
+ if(page==='settings'){heading('PREFERENCES','Настройки','Nexora работает локально, не требует аккаунта.');for(const [a,b] of [['Версия','0.24.1 · Alpha'],['Интерфейс','Русский · Midnight Violet'],['Данные','Библиотека и резервные копии хранятся в папке данных приложения.'],['Трейнеры','Встроенный редактор и сессионные трейнеры. Личные шаблоны сохраняются; готовые пресеты и импорт CT пока недоступны.']]){const item=el('section','setting');item.append(el('h2','',a),el('p','',b));content.append(item)}const motion=el('section','setting motion-setting'),text=el('div');text.append(el('h2','','Анимации'),el('p','','Плавные переходы и эффекты при взаимодействии. Системная настройка уменьшения движения учитывается.'));const toggle=button(window.nexoraDesign.motionEnabled()?'Включены':'Отключены','motion-toggle'+(window.nexoraDesign.motionEnabled()?' on':''),()=>{window.nexoraDesign.setMotion(!window.nexoraDesign.motionEnabled());render()});toggle.setAttribute('role','switch');toggle.setAttribute('aria-checked',String(window.nexoraDesign.motionEnabled()));motion.append(text,toggle);content.append(motion,releasePanel());return}
  libraryPage();
 
 }

@@ -2,9 +2,9 @@ using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Security.Cryptography;
 
-internal static class TrainingDemo
+internal static class Program
 {
-    internal static int Run()
+    private static int Main()
     {
         // An owned private allocation, never a game or system process.
         nint gold=Marshal.AllocHGlobal(4), health=Marshal.AllocHGlobal(4);
