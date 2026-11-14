@@ -1,0 +1,3 @@
+const fs=require('node:fs'),os=require('node:os'),path=require('node:path');
+const {createLocalModel}=require(path.resolve(process.argv[2]||'local-model.cjs'));
+(async()=>{const dir=fs.mkdtempSync(path.join(os.tmpdir(),'nexora-local-smoke-'));const model=createLocalModel(dir);try{const state=await model.install();if(!state.ready)throw Error(state.error||'Language pack installation failed');const out=await model.translate('Find the ancient fortress.',new AbortController().signal);if(!/[а-яё]/i.test(out))throw Error('Local translation failed');console.log('Local translation passed:',out)}finally{await model.close();fs.rmSync(dir,{recursive:true,force:true})}})().catch(e=>{console.error(e);process.exitCode=1});

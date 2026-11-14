@@ -26,3 +26,8 @@ In 0.7 the external-launch approach was removed. The integrated Nexora memory mo
 ## 0.12 OCR
 
 Tesseract.js 6.0.1 and the packaged English traineddata (upstream npm packages) are included with their original license notices. MyMemory and DeepL are optional network translation services, used through documented APIs and their own terms. No remote executable code is fetched at runtime for OCR.
+
+## 0.14 Offline language pack
+
+- Transformers.js 3.8.1 (Apache-2.0), ONNX Runtime and their bundled dependency notices retained.
+- English→Russian OPUS-MT by Helsinki-NLP: https://huggingface.co/Helsinki-NLP/opus-mt-en-ru (upstream card Apache-2.0). ONNX conversion/quantization by Xenova / ONNX Community: https://huggingface.co/onnx-community/opus-mt-en-ru (model card CC BY 4.0, https://creativecommons.org/licenses/by/4.0/); pinned revision c6967b328d292f9f3d14bab6e9de40f9bd367114, q8 weights. Nexora does not alter these weights, and downloads the card alongside the files. Model separately downloaded by explicit user action; no credentials or game text sent when using the model locally.

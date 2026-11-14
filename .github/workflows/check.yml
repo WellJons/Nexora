@@ -38,6 +38,8 @@ jobs:
           node -e "require('./dist/Nexora-win32-x64/resources/app/node_modules/systeminformation'); console.log('Runtime dependency loads')"
           node scripts/ocr-smoke.cjs ./dist/Nexora-win32-x64/resources/app/translator.cjs
           if ($LASTEXITCODE -ne 0) { throw 'Local OCR self-test failed' }
+          node -e "import('./dist/Nexora-win32-x64/resources/app/node_modules/@huggingface/transformers/dist/transformers.node.mjs').then(()=>console.log('Local model runtime loads')).catch(e=>{console.error(e);process.exitCode=1})"
+          if ($LASTEXITCODE -ne 0) { throw 'Local model runtime failed' }
           & ./dist/Nexora-win32-x64/resources/app/native-bin/Nexora.Memory.exe --self-test
           if ($LASTEXITCODE -ne 0) { throw 'Native self-test failed' }
       - uses: actions/upload-artifact@v4
@@ -45,3 +47,15 @@ jobs:
           name: Nexora-Windows-x64
           path: dist/Nexora-win32-x64/
           if-no-files-found: error
+
+  local-model-smoke:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm install --no-audit --no-fund
+      - run: node scripts/local-translate-smoke.cjs

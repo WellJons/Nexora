@@ -1,14 +1,14 @@
 {
   "name": "nexora",
   "productName": "Nexora",
-  "version": "0.13.0",
+  "version": "0.14.0",
   "private": true,
   "description": "Personal single-player game companion",
   "main": "main.cjs",
   "scripts": {
     "start": "electron .",
     "test": "node --test",
-    "check": "node --check main.cjs && node --check preload.cjs && node --check renderer.js && node --check mods.cjs && node --check core.cjs && node --check manager.cjs && node --check performance.cjs && node --check library.cjs && node --check scripts/package.cjs && node --check save-vault.cjs && node --check memory-bridge.cjs && node --check overlay.cjs && node --check overlay-preload.cjs && node --check overlay.js && node --check gog.cjs && node --check mod-plan.cjs && node --check thunder.cjs && node --check guides.js && node --check translator.cjs && node --check translation-window.cjs && node --check translation-preload.cjs && node --check translation-ui.js",
+    "check": "node --check main.cjs && node --check preload.cjs && node --check renderer.js && node --check mods.cjs && node --check core.cjs && node --check manager.cjs && node --check performance.cjs && node --check library.cjs && node --check scripts/package.cjs && node --check save-vault.cjs && node --check memory-bridge.cjs && node --check overlay.cjs && node --check overlay-preload.cjs && node --check overlay.js && node --check gog.cjs && node --check mod-plan.cjs && node --check thunder.cjs && node --check guides.js && node --check translator.cjs && node --check translation-window.cjs && node --check translation-preload.cjs && node --check translation-ui.js && node --check local-model.cjs && node --check local-model-worker.cjs",
     "package:win": "node scripts/package.cjs",
     "trainer:build": "dotnet publish native/Nexora.Memory/Nexora.Memory.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:DebugType=None -o native-bin"
   },
@@ -19,7 +19,8 @@
   "dependencies": {
     "systeminformation": "5.33.22",
     "tesseract.js": "6.0.1",
-    "@tesseract.js-data/eng": "1.0.0"
+    "@tesseract.js-data/eng": "1.0.0",
+    "@huggingface/transformers": "3.8.1"
   },
   "engines": {
     "node": ">=22.12.0"
