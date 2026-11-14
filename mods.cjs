@@ -1,3 +1,4 @@
+const {scratch}=require('./scratch.cjs');
 const fs=require('node:fs'), path=require('node:path'), os=require('node:os');
 const {createHash}=require('node:crypto');
 const {Readable,Transform}=require('node:stream');
@@ -21,7 +22,7 @@ async function versions(project,game,loader){filters('',game,loader);const qs=ne
 async function resolveFile(project,version,name){const v=await json('/version/'+id(version));if(v.project_id!==id(project))throw Error('Версия не принадлежит выбранному моду');const f=v.files.find(x=>x.filename===name&&validFile(x));if(!f)throw Error('Файл недоступен или не соответствует правилам загрузки');return f}
 async function download(f,destination,fetcher=fetch){
  if(!validFile(f))throw Error('Неподдерживаемый файл');
- const temp=await fs.promises.mkdtemp(path.join(os.tmpdir(),'nexora-mod-')), staged=path.join(temp,'download.jar');
+ const temp=await fs.promises.mkdtemp(path.join(scratch(),'nexora-mod-')), staged=path.join(temp,'download.jar');
  try{
  const res=await fetcher(f.url,{headers:{'User-Agent':agent},redirect:'error',signal:AbortSignal.timeout(180000)});if(!res.ok||!res.body)throw Error('Ошибка загрузки: HTTP '+res.status);
  const hash=createHash('sha512');let size=0;

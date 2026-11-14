@@ -35,3 +35,5 @@ Tesseract.js 6.0.1 and the packaged English traineddata (upstream npm packages) 
 0.15 adds the FP32 encoder and merged decoder from the same pinned OPUS-MT ONNX revision and uses their published SHA-256 digests. No new model license or weights modifications.
 
 0.16: M2M100-418M (Meta, MIT license; https://huggingface.co/facebook/m2m100_418M), ONNX conversion Xenova (https://huggingface.co/Xenova/m2m100_418M, revision 9c374f0). Original model card citation and MIT license retained in upstream documentation; downloaded conversion README is included in the language pack. No game text sent to the model host.
+
+0.17: Inno Setup 6.7.1 (build-time tool, https://jrsoftware.org/isinfo.php). For commercial use the author requests purchase of a license; review terms before commercial distribution. Branding is generated from original Nexora artwork. No third-party installer is required on the user's computer.

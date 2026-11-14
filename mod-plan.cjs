@@ -1,3 +1,4 @@
+const {scratch}=require('./scratch.cjs');
 const fs=require('node:fs'),path=require('node:path'),os=require('node:os');
 const manager=require('./manager.cjs');
 const MAX_MODS=32,MAX_BYTES=512*1024*1024;
@@ -42,7 +43,7 @@ async function installPlan(api,plan,folder,installed){
   for(const n of [item.file.filename,item.file.filename+'.nexora-disabled']){try{await fs.promises.lstat(path.join(dir,n));throw Error('Файл уже существует: '+n)}catch(e){if(e.code!=='ENOENT')throw e}}
   todo.push(item);
  }
- const temp=await fs.promises.mkdtemp(path.join(os.tmpdir(),'nexora-plan-'));const added=[];
+ const temp=await fs.promises.mkdtemp(path.join(scratch(),'nexora-plan-'));const added=[];
  try{
   for(const [i,item] of todo.entries()){const staged=path.join(temp,String(i)+'.jar');const info=await api.download(item.file,staged);item.staged={name:item.file.filename,path:staged,...info}}
   for(const item of todo){const record=await manager.install(item.staged,dir);added.push({...record,project:item.project,version:item.version,game:plan.game,loader:plan.loader,title:item.name,number:item.number})}

@@ -244,6 +244,7 @@ internal static class Program
     private static int Main(string[] args)
     {
         if(!OperatingSystem.IsWindows()||!Environment.Is64BitProcess)return 2;
+        if(args.Length==2&&args[0]=="--uninstall-cleanup"&&(args[1]=="keep"||args[1]=="purge-backups"))return Cleanup.Run(args[1]=="purge-backups");
         if(args.Length==1&&args[0]=="--self-test"){
             if(Marshal.SizeOf<Win.Region>()!=48||Scanner.Encode("int32",int.MaxValue)!=int.MaxValue||Scanner.Encode("float32",1.5)!=BitConverter.SingleToInt32Bits(1.5f))return 3;
             var buffer=new byte[12];BinaryPrimitives.WriteInt32LittleEndian(buffer.AsSpan(4),123456);var list=new List<long>();Scanner.Collect(buffer,12,100,123456,list,10);if(list.Count!=1||list[0]!=104)return 4;
@@ -251,6 +252,7 @@ internal static class Program
             nint ptr=Marshal.AllocHGlobal(4),h=Win.OpenProcess(Win.QueryReadWrite,false,Environment.ProcessId);
             try{if(h==0)return 6;Marshal.WriteInt32(ptr,13);var b=new byte[4];if(!Win.ReadProcessMemory(h,ptr,b,4,out var r)||r!=4||BitConverter.ToInt32(b)!=13)return 7;if(!Win.WriteProcessMemory(h,ptr,BitConverter.GetBytes(42),4,out var w)||w!=4||Marshal.ReadInt32(ptr)!=42)return 8;}finally{if(h!=0)Win.CloseHandle(h);Marshal.FreeHGlobal(ptr);}
             if(!Scanner.SelfTestWatch())return 9;
+            if(!Cleanup.SelfTest())return 10;
             Console.WriteLine("Nexora native self-test passed.");return 0;
         }
         using var scanner=new Scanner();

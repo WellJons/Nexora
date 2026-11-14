@@ -1,3 +1,4 @@
+const {scratch}=require('./scratch.cjs');
 const fs=require('node:fs'),path=require('node:path'),os=require('node:os'),{createHash}=require('node:crypto'),{Readable,Transform}=require('node:stream'),{pipeline}=require('node:stream/promises');
 const games=[['valheim','Valheim'],['lethal-company','Lethal Company'],['riskofrain2','Risk of Rain 2'],['repo','R.E.P.O.'],['ultrakill','ULTRAKILL']];
 const base='https://thunderstore.io',MAX=256*1024*1024,MAX_JSON=128*1024*1024,agent='WellJons/Nexora/0.11.0';
@@ -26,7 +27,7 @@ function createThunder(fetcher=fetch,clock=Date.now){
  async function download(game,id,v,dest){const p=await details(game,id),meta=p.versions.find(x=>x.version===v);if(!meta)throw Error('Версия недоступна');if(path.extname(dest).toLowerCase()!=='.zip')throw Error('Выберите ZIP');let url=new URL('/package/download/'+p.owner+'/'+p.name+'/'+meta.version+'/',base),res;
  for(let n=0;n<5;n++){if(!safeUrl(url.href))throw Error('Недоверенный адрес загрузки');res=await fetcher(url,{headers:{'User-Agent':agent},redirect:'manual',signal:AbortSignal.timeout(180000)});if(![301,302,303,307,308].includes(res.status))break;const loc=res.headers.get('location');await res.body?.cancel();if(!loc)throw Error('Отсутствует адрес перенаправления');url=new URL(loc,url);res=null}
  if(!res?.ok||!res.body)throw Error('Ошибка загрузки Thunderstore');
- const tmp=await fs.promises.mkdtemp(path.join(os.tmpdir(),'nexora-thunder-')),staged=path.join(tmp,'package.zip');let size=0,head=Buffer.alloc(0);const hash=createHash('sha256');
+ const tmp=await fs.promises.mkdtemp(path.join(scratch(),'nexora-thunder-')),staged=path.join(tmp,'package.zip');let size=0,head=Buffer.alloc(0);const hash=createHash('sha256');
  try{const guard=new Transform({transform(chunk,_enc,cb){size+=chunk.length;if(size>MAX||size>meta.size)return cb(Error('Размер превышает заявленный'));if(head.length<4)head=Buffer.concat([head,chunk.subarray(0,4-head.length)]);hash.update(chunk);cb(null,chunk)}});await pipeline(Readable.fromWeb(res.body),guard,fs.createWriteStream(staged,{flags:'wx'}));if(size!==meta.size||head.toString('hex')!=='504b0304')throw Error('Размер или формат ZIP не совпадает');await fs.promises.copyFile(staged,dest,fs.constants.COPYFILE_EXCL);return {size,sha256:hash.digest('hex'),name:path.basename(dest)}}finally{await fs.promises.rm(tmp,{recursive:true,force:true})}
  }
  return {search,details,download};

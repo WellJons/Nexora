@@ -228,7 +228,7 @@ function render(){if(page!=='performance')stopPerf();content.replaceChildren();d
  if(page==='downloads'){downloads();return}
  if(page==='manager'){managedPage();return}
  if(page==='saves'){savePage();return}
- if(page==='settings'){heading('PREFERENCES','Настройки','Nexora работает локально, не требует аккаунта.');for(const [a,b] of [['Версия','0.16.0 · Alpha'],['Интерфейс','Русский · Midnight Violet'],['Данные','Библиотека и резервные копии хранятся в папке данных приложения.'],['Трейнеры','Встроенный редактор и сессионные трейнеры. Готовые пресеты и импорт CT ещё не реализованы.']]){const item=el('section','setting');item.append(el('h2','',a),el('p','',b));content.append(item)}return}
+ if(page==='settings'){heading('PREFERENCES','Настройки','Nexora работает локально, не требует аккаунта.');for(const [a,b] of [['Версия','0.17.0 · Alpha'],['Интерфейс','Русский · Midnight Violet'],['Данные','Библиотека и резервные копии хранятся в папке данных приложения.'],['Трейнеры','Встроенный редактор и сессионные трейнеры. Готовые пресеты и импорт CT ещё не реализованы.']]){const item=el('section','setting');item.append(el('h2','',a),el('p','',b));content.append(item)}return}
  libraryPage();
 
 }

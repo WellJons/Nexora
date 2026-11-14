@@ -2,6 +2,9 @@ const {app,BrowserWindow,ipcMain,dialog,shell,session,screen,globalShortcut,desk
 const fs=require('node:fs'),path=require('node:path');
 const {execFileSync,spawn}=require('node:child_process');
 const {randomUUID}=require('node:crypto');
+const {configureScratch}=require('./scratch.cjs');
+app.setPath('userData',path.join(app.getPath('appData'),'Nexora'));
+if(!app.requestSingleInstanceLock()){app.quit();process.exit(0)}
 const {discoverSteam,mergeGames}=require('./core.cjs');
 const mods=require('./mods.cjs');
 const manager=require('./manager.cjs');
@@ -29,7 +32,7 @@ async function exclusive(fn){if(managerBusy)throw Error('Дождитесь за
 let win,state={manual:[],favorites:[],history:[],backups:[],downloads:[],installedMods:[],profiles:[],launchLog:[]},games=[];
 const config=()=>path.join(app.getPath('userData'),'library.json');
 function persist(){const p=config();fs.mkdirSync(path.dirname(p),{recursive:true});fs.writeFileSync(p+'.tmp',JSON.stringify(state,null,2));fs.renameSync(p+'.tmp',p)}
-function load(){try{const v=JSON.parse(fs.readFileSync(config(),'utf8'));for(const key of Object.keys(state))if(Array.isArray(v[key]))state[key]=v[key]}catch{}}
+function load(){try{const v=JSON.parse(fs.readFileSync(config(),'utf8'));for(const key of Object.keys(state))if(Array.isArray(v[key]))state[key]=v[key]}catch{}try{const old=JSON.parse(fs.readFileSync(path.join(app.getPath('userData'),'backup-index.json'),'utf8'));if(Array.isArray(old)){const ids=new Set(state.backups.map(b=>b.id));for(const b of old)if(b&&typeof b.id==='string'&&!ids.has(b.id)){state.backups.push(b);ids.add(b.id)}}}catch{}}
 function steamRoots(){
  if(process.platform!=='win32')return [];
  const roots=[path.join(process.env['ProgramFiles(x86)']||'C:\\Program Files (x86)','Steam')];
@@ -138,5 +141,6 @@ safeHandler('translation:start',async value=>{
 });
 safeHandler('translation:stop',()=>translation.stop());
 app.on('before-quit',()=>{bridge.close();overlay?.close();translation?.stop();localModel?.cancel();localModel?.close()});
-app.whenReady().then(()=>{load();session.defaultSession.setPermissionRequestHandler((_wc,_permission,cb)=>cb(false));win=new BrowserWindow({width:1280,height:850,minWidth:780,minHeight:620,backgroundColor:'#14151c',autoHideMenuBar:true,title:'Nexora',webPreferences:{preload:path.join(__dirname,'preload.cjs'),contextIsolation:true,nodeIntegration:false,sandbox:true}});win.webContents.setWindowOpenHandler(()=>({action:'deny'}));win.webContents.on('will-navigate',e=>e.preventDefault());overlay=createOverlay({BrowserWindow,screen,globalShortcut,ipcMain,monitor,dir:__dirname,onChange:value=>{if(win&&!win.isDestroyed())win.webContents.send('hud:changed',value)}});localModel=createLocalModel(path.join(app.getPath('userData'),'translation-models'),value=>{if(win&&!win.isDestroyed())win.webContents.send('translation:model-changed',value)});translation=createTranslation({localModel,BrowserWindow,screen,desktopCapturer,globalShortcut,ipcMain,main:win,dir:__dirname,onChange:value=>{if(win&&!win.isDestroyed())win.webContents.send('translation:changed',value)}});win.on('closed',()=>{overlay.close();translation.stop();app.quit()});win.loadFile('index.html')});
+app.on('second-instance',()=>{if(win&&!win.isDestroyed()){if(win.isMinimized())win.restore();win.show();win.focus()}});
+app.whenReady().then(()=>{configureScratch(app.getPath('userData'));load();session.defaultSession.setPermissionRequestHandler((_wc,_permission,cb)=>cb(false));win=new BrowserWindow({width:1280,height:850,minWidth:780,minHeight:620,backgroundColor:'#14151c',autoHideMenuBar:true,title:'Nexora',webPreferences:{preload:path.join(__dirname,'preload.cjs'),contextIsolation:true,nodeIntegration:false,sandbox:true}});win.webContents.setWindowOpenHandler(()=>({action:'deny'}));win.webContents.on('will-navigate',e=>e.preventDefault());overlay=createOverlay({BrowserWindow,screen,globalShortcut,ipcMain,monitor,dir:__dirname,onChange:value=>{if(win&&!win.isDestroyed())win.webContents.send('hud:changed',value)}});localModel=createLocalModel(path.join(app.getPath('userData'),'translation-models'),value=>{if(win&&!win.isDestroyed())win.webContents.send('translation:model-changed',value)});translation=createTranslation({localModel,BrowserWindow,screen,desktopCapturer,globalShortcut,ipcMain,main:win,dir:__dirname,onChange:value=>{if(win&&!win.isDestroyed())win.webContents.send('translation:changed',value)}});win.on('closed',()=>{overlay.close();translation.stop();app.quit()});win.loadFile('index.html')});
 app.on('window-all-closed',()=>app.quit());
