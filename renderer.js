@@ -1,5 +1,5 @@
 const $=s=>document.querySelector(s);
-const content=$('#content');let data={games:[],favorites:[],history:[],backups:[],downloads:[]},page='home',selected='steam:4358690',query='',timer;
+const content=$('#content');let data={games:[],favorites:[],history:[],backups:[],downloads:[],installedMods:[]},page='home',selected='steam:4358690',query='',timer;
 const plans={
  'steam:4358690':['Бессмертие','Бесконечная энергия','Бесконечные ресурсы','Мгновенное создание предметов','Неограниченные деньги','Скорость игры'],
  'steam:1091500':['Бессмертие','Бесконечные патроны','Неограниченные деньги','Опыт персонажа'],
@@ -41,12 +41,27 @@ function modCatalog(){
  if(!modState.results.length){content.append(el('div','empty','Моды не найдены. Измените фильтры.'));return}
  const grid=el('div','modgrid');for(const p of modState.results){const a=button('','modcard',()=>chooseMod(p),modState.busy),top=el('div','modcardtop'),ico=el('div','modicon','◇');if(p.icon){const img=el('img');img.src=p.icon;img.alt='';img.addEventListener('error',()=>img.remove(),{once:true});ico.append(img)}const lab=el('div');lab.append(el('strong','',p.title),el('small','',p.author));top.append(ico,lab);a.append(top,el('p','moddesc',p.description),el('small','modcount','↓ '+Number(p.downloads).toLocaleString('ru-RU')+' загрузок'));grid.append(a)}content.append(grid)
 }
-function downloads(){heading('DOWNLOAD CENTER','Загрузки','Скачанные файлы модов. Nexora не запускает и не устанавливает их автоматически.');if(!data.downloads?.length){content.append(el('div','empty','Загрузок пока нет. Откройте раздел «Моды».'));return}for(const d of data.downloads){const r=el('div','listitem'),l=el('div');l.append(el('strong','',d.name),el('small','',d.provider+' · '+(d.size/1048576).toFixed(2)+' МБ · '+new Date(d.date).toLocaleString('ru-RU')+' · SHA-512 совпал при загрузке'));r.append(l,button('Показать файл','secondary',()=>action(()=>window.nexora.showDownload(d.id))));content.append(r)}}
+let managed=null,managerLoading=false,managerError='',managerAction=false;
+async function loadManaged(){if(managerLoading)return;managerLoading=true;managerError='';try{managed=await window.nexora.managedMods()}catch(e){managerError=e.message}finally{managerLoading=false;if(page==='manager')render()}}
+async function handleManaged(fn){if(managerAction)return;managerAction=true;render();try{const result=await fn();if(result?.games){data=result;toast('Изменения сохранены')}}catch(e){toast(e.message)}finally{managerAction=false;managed=null;if(page==='manager'){render();loadManaged()}else if(page==='downloads')render()}}
+function managedPage(){
+ heading('MOD MANAGER','Мои моды','Управление установленными через Nexora модами Minecraft. Другие файлы игры не затрагиваются.');
+ const banner=el('section','modhero');banner.append(el('div','eyebrow','LOCAL MOD PROFILES'),el('h2','','Контролируй свою сборку'),el('p','','Закрывай игру перед изменениями. Отключённый мод остаётся в папке с расширением .nexora-disabled; его можно включить обратно.'));
+ const tools=el('div','sectionhead');tools.append(el('p','','Включение · отключение · проверка файла'),button('Обновить','secondary',()=>{managed=null;render();loadManaged()},managerLoading||managerAction));banner.append(tools);content.append(banner);
+ if(managerError){content.append(el('div','notice',managerError));return}
+ if(managed===null){content.append(el('div','empty','Получаем состояние файлов…'));return}
+ if(!managed.length){const e=el('div','empty');e.append(el('p','','Пока нет модов, установленных Nexora.'),button('Перейти в загрузки','primary',()=>{page='downloads';render()}));content.append(e);return}
+ const groups=new Map();for(const item of managed){if(!groups.has(item.folder))groups.set(item.folder,[]);groups.get(item.folder).push(item)}
+ for(const [folder,items] of groups){section('Профиль Minecraft',items.length+' модов');content.append(el('p','profilepath',folder));
+ for(const m of items){const r=el('div','listitem'),l=el('div'),a=el('div','toolbar');const label={active:'Включён (файл найден)',disabled:'Отключён',missing:'Файл не найден',conflict:'Конфликт файлов'}[m.status]||'Неизвестно';l.append(el('strong','',m.name),el('small','',label+' · '+(m.size/1048576).toFixed(2)+' МБ'));const sw=button(m.status==='active'?'Отключить':'Включить',m.status==='active'?'secondary':'primary',()=>handleManaged(()=>window.nexora.toggleMod(m.id,m.status!=='active')),managerAction||!['active','disabled'].includes(m.status));a.append(sw,button('Папка','secondary',()=>action(()=>window.nexora.modFolder(m.id))));r.append(l,a);content.append(r)}}
+}
+function downloads(){heading('DOWNLOAD CENTER','Загрузки','Скачанные файлы модов. Nexora не запускает и не устанавливает их автоматически.');if(!data.downloads?.length){content.append(el('div','empty','Загрузок пока нет. Откройте раздел «Моды».'));return}for(const d of data.downloads){const r=el('div','listitem'),l=el('div');l.append(el('strong','',d.name),el('small','',d.provider+' · '+(d.size/1048576).toFixed(2)+' МБ · '+new Date(d.date).toLocaleString('ru-RU')+' · SHA-512 совпал при загрузке'));const actions=el('div','toolbar');actions.append(button('Установить','primary',()=>handleManaged(()=>window.nexora.installMod(d.id)),managerAction),button('Показать файл','secondary',()=>action(()=>window.nexora.showDownload(d.id))));r.append(l,actions);content.append(r)}}
 function render(){content.replaceChildren();document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('active',b.dataset.page===page));
  if(page==='mods'){modCatalog();return}
  if(page==='downloads'){downloads();return}
+ if(page==='manager'){managedPage();return}
  if(page==='saves'){heading('SAVE VAULT','Сохранения','Локальные резервные копии игровых данных.');const g=data.games.find(x=>x.id===selected);if(g){const tools=el('div','sectionhead');tools.append(el('p','',g.name),button('＋ Создать копию','primary',()=>action(()=>window.nexora.backup(g.id))));content.append(tools)}if(!data.backups.length)content.append(el('div','empty','Пока нет сохранённых копий.'));for(const b of data.backups){const r=el('div','listitem'),l=el('div');l.append(el('strong','',b.game),el('small','',new Date(b.date).toLocaleString('ru-RU')));r.append(l,button('Открыть папку','secondary',()=>action(()=>window.nexora.openBackup(b.id))));content.append(r)}return}
- if(page==='settings'){heading('PREFERENCES','Настройки','Nexora работает локально, не требует аккаунта.');for(const [a,b] of [['Версия','0.2.0 · Alpha'],['Интерфейс','Русский · Midnight Violet'],['Данные','Библиотека и резервные копии хранятся в папке данных приложения.'],['Трейнеры','Движок не подключён. Управление памятью, оверлей и импорт таблиц запланированы.']]){const item=el('section','setting');item.append(el('h2','',a),el('p','',b));content.append(item)}return}
+ if(page==='settings'){heading('PREFERENCES','Настройки','Nexora работает локально, не требует аккаунта.');for(const [a,b] of [['Версия','0.3.0 · Alpha'],['Интерфейс','Русский · Midnight Violet'],['Данные','Библиотека и резервные копии хранятся в папке данных приложения.'],['Трейнеры','Движок не подключён. Управление памятью, оверлей и импорт таблиц запланированы.']]){const item=el('section','setting');item.append(el('h2','',a),el('p','',b));content.append(item)}return}
  let games=data.games.filter(g=>(page!=='library'||g.installed)&&(page!=='favorites'||data.favorites.includes(g.id))&&g.name.toLowerCase().includes(query.toLowerCase()));
  const installed=data.games.filter(g=>g.installed).length;
  heading(page==='home'?'YOUR GAME. YOUR RULES.':'YOUR COLLECTION',page==='home'?'Играй по своим правилам.':page==='library'?'Мои игры':'Избранное',page==='home'?'Твоя библиотека, игровой профиль и инструменты — в одном месте.':page==='library'?'Установленные игры Steam и добавленные вручную EXE.':'Игры, которые всегда под рукой.');
@@ -56,8 +71,8 @@ function render(){content.replaceChildren();document.querySelectorAll('nav butto
  const grid=el('div','games');const visible=page==='home'&&!query?games.slice(0,3):games; if(!visible.some(g=>g.id===selected))selected=visible[0].id;visible.forEach(g=>grid.append(card(g)));content.append(grid);detail(games.find(g=>g.id===selected));
  if(page==='home'&&!query&&games.length>3){section('Ещё игры','Каталог');const more=el('div','games');games.slice(3).forEach(g=>{const c=card(g);c.querySelector('.cover').addEventListener('click',()=>{page='library';if(!g.installed) {page='home';query=g.name;$('#search').value=query;}selected=g.id;render()});more.append(c)});content.append(more)}
 }
-document.querySelectorAll('nav button').forEach(b=>b.addEventListener('click',()=>{page=b.dataset.page;query='';$('#search').value='';render()}));
-$('#search').addEventListener('input',e=>{query=e.target.value;if(['settings','saves','mods','downloads'].includes(page))page='home';render()});
+document.querySelectorAll('nav button').forEach(b=>b.addEventListener('click',()=>{page=b.dataset.page;query='';$('#search').value='';render();if(page==='manager')loadManaged()}));
+$('#search').addEventListener('input',e=>{query=e.target.value;if(['settings','saves','mods','downloads','manager'].includes(page))page='home';render()});
 $('#refresh').addEventListener('click',()=>action(()=>window.nexora.list(),'Библиотека обновлена'));
 $('#add').addEventListener('click',()=>action(()=>window.nexora.add()));
 document.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='k'){e.preventDefault();$('#search').focus()}});

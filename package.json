@@ -1,14 +1,14 @@
 {
   "name": "nexora",
   "productName": "Nexora",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "description": "Personal single-player game companion",
   "main": "main.cjs",
   "scripts": {
     "start": "electron .",
     "test": "node --test",
-    "check": "node --check main.cjs && node --check preload.cjs && node --check renderer.js && node --check mods.cjs"
+    "check": "node --check main.cjs && node --check preload.cjs && node --check renderer.js && node --check mods.cjs && node --check core.cjs && node --check manager.cjs"
   },
   "devDependencies": {
     "electron": "45.3.2"

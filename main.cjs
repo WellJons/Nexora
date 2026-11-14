@@ -4,7 +4,10 @@ const {execFileSync,spawn}=require('node:child_process');
 const {randomUUID}=require('node:crypto');
 const {discoverSteam,mergeGames,copySave}=require('./core.cjs');
 const mods=require('./mods.cjs');
-let win,state={manual:[],favorites:[],history:[],backups:[],downloads:[]},games=[];
+const manager=require('./manager.cjs');
+let managerBusy=false;
+async function exclusive(fn){if(managerBusy)throw Error('Дождитесь завершения другой операции с модами');managerBusy=true;try{return await fn()}finally{managerBusy=false}}
+let win,state={manual:[],favorites:[],history:[],backups:[],downloads:[],installedMods:[]},games=[];
 const config=()=>path.join(app.getPath('userData'),'library.json');
 function persist(){const p=config();fs.mkdirSync(path.dirname(p),{recursive:true});fs.writeFileSync(p+'.tmp',JSON.stringify(state,null,2));fs.renameSync(p+'.tmp',p)}
 function load(){try{const v=JSON.parse(fs.readFileSync(config(),'utf8'));for(const key of Object.keys(state))if(Array.isArray(v[key]))state[key]=v[key]}catch{}}
@@ -14,7 +17,7 @@ function steamRoots(){
  try{const out=execFileSync('reg.exe',['query','HKCU\\Software\\Valve\\Steam','/v','SteamPath'],{encoding:'utf8',windowsHide:true,timeout:3000});const m=out.match(/REG_SZ\s+(.+)/i);if(m)roots.unshift(m[1].trim())}catch{}
  return [...new Set(roots)];
 }
-function refresh(){const all=steamRoots().flatMap(discoverSteam);games=mergeGames(all,state.manual);return {games,favorites:state.favorites,history:state.history,backups:state.backups,downloads:state.downloads}}
+function refresh(){const all=steamRoots().flatMap(discoverSteam);games=mergeGames(all,state.manual);return {games,favorites:state.favorites,history:state.history,backups:state.backups,downloads:state.downloads,installedMods:state.installedMods}}
 function safeHandler(name,fn){ipcMain.handle(name,async(e,...args)=>{if(!win||e.sender!==win.webContents||e.senderFrame!==win.webContents.mainFrame)throw Error('Invalid origin');return fn(...args)})}
 safeHandler('library:list',refresh);
 safeHandler('library:add',async()=>{const r=await dialog.showOpenDialog(win,{properties:['openFile'],filters:[{name:'Windows game',extensions:['exe']}]});if(r.canceled)return refresh();const p=r.filePaths[0];if(path.extname(p).toLowerCase()!=='.exe')throw Error('Выберите EXE игры');if(!state.manual.some(g=>g.path===p)){state.manual.push({id:'local:'+randomUUID(),name:path.basename(p,'.exe'),path:p,installed:true,kind:'local'});persist()}return refresh()});
@@ -34,5 +37,24 @@ safeHandler('mods:download',async(project,version,name)=>{
  state.downloads=state.downloads.slice(0,100);persist();return refresh();
 });
 safeHandler('mods:show',id=>{const d=state.downloads.find(v=>v.id===id);if(!d)throw Error('Загрузка не найдена');shell.showItemInFolder(d.path);return true});
+safeHandler('manager:list',async()=>Promise.all(state.installedMods.map(async m=>({...m,status:await manager.status(m)}))));
+safeHandler('manager:install',id=>exclusive(async()=>{
+ const d=state.downloads.find(x=>x.id===id);if(!d)throw Error('Сначала скачайте мод через Nexora');
+ const result=await dialog.showOpenDialog(win,{title:'Выберите папку mods нужного профиля Minecraft',properties:['openDirectory']});
+ if(result.canceled)return null;
+ const confirmation=await dialog.showMessageBox(win,{type:'warning',buttons:['Отмена','Установить'],defaultId:0,cancelId:0,title:'Установка мода',message:d.name,detail:'Папка: '+result.filePaths[0]+'\nЗакройте Minecraft. Устанавливайте только доверенные моды. Убедитесь, что версия игры, загрузчик и зависимости подходят. Nexora не проверяет мод на вредоносный код.'});
+ if(confirmation.response!==1)return null;
+ const installed=await manager.install(d,result.filePaths[0]);
+ state.installedMods.unshift({...installed,id:randomUUID(),project:d.project,version:d.version,date:new Date().toISOString()});
+ persist();return refresh();
+}));
+safeHandler('manager:toggle',(id,enabled)=>exclusive(async()=>{
+ if(typeof enabled!=='boolean')throw Error('Некорректное действие');
+ const m=state.installedMods.find(x=>x.id===id);if(!m)throw Error('Мод не управляется Nexora');
+ const confirm=await dialog.showMessageBox(win,{type:'question',buttons:['Отмена',enabled?'Включить':'Отключить'],defaultId:0,cancelId:0,message:m.name,detail:'Перед изменением закройте Minecraft. Файл будет переименован без перезаписи других модов.'});
+ if(confirm.response!==1)return null;
+ await manager.toggle(m,enabled);return refresh();
+}));
+safeHandler('manager:folder',async id=>{const m=state.installedMods.find(x=>x.id===id);if(!m)throw Error('Мод не найден');const e=await shell.openPath(m.folder);if(e)throw Error(e);return true});
 app.whenReady().then(()=>{load();session.defaultSession.setPermissionRequestHandler((_wc,_permission,cb)=>cb(false));win=new BrowserWindow({width:1280,height:850,minWidth:780,minHeight:620,backgroundColor:'#14151c',autoHideMenuBar:true,title:'Nexora',webPreferences:{preload:path.join(__dirname,'preload.cjs'),contextIsolation:true,nodeIntegration:false,sandbox:true}});win.webContents.setWindowOpenHandler(()=>({action:'deny'}));win.webContents.on('will-navigate',e=>e.preventDefault());win.loadFile('index.html')});
 app.on('window-all-closed',()=>app.quit());

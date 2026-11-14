@@ -27,6 +27,6 @@ function copySave(src,dest){
  const norm=p=>process.platform==='win32'?p.toLowerCase():p;
  if(norm(to)===norm(from)||norm(to).startsWith(norm(from+path.sep)))throw Error('Папка копии не должна находиться внутри сохранений');
  const target=fs.mkdtempSync(path.join(to,'save-'));
- try{fs.cpSync(from,target,{recursive:true,filter:p=>!fs.lstatSync(p).isSymbolicLink(),errorOnExist:true,force:false});return target}catch(e){fs.rmSync(target,{recursive:true,force:true});throw e}
+ try{for(const entry of fs.readdirSync(from)){const source=path.join(from,entry);if(fs.lstatSync(source).isSymbolicLink())continue;fs.cpSync(source,path.join(target,entry),{recursive:true,filter:p=>!fs.lstatSync(p).isSymbolicLink(),errorOnExist:true,force:false})}return target}catch(e){fs.rmSync(target,{recursive:true,force:true});throw e}
 }
 module.exports={catalog,discoverSteam,mergeGames,copySave};
