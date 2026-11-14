@@ -124,11 +124,12 @@ safeHandler('hud:state',()=>overlay.state());
 safeHandler('hud:configure',v=>overlay.configure(v));
 safeHandler('hud:toggle',()=>overlay.toggle());
 safeHandler('translation:displays',()=>translation.displays());
+safeHandler('translation:windows',()=>translation.windows());
 safeHandler('translation:state',()=>translation.state());
 safeHandler('translation:start',async value=>{
  const config=translationSettings(value);
- const detail=config.provider==='ocr'?'Распознавание выполняется локально.':'Распознанный английский текст выбранной области будет передаваться сервису '+(config.provider==='deepl'?'DeepL':'MyMemory')+'. Изображения не отправляются. Не оставляйте в области личные данные; сервис имеет собственные правила и лимиты. Захват следует за экраном, а не за процессом игры: остановите его перед переключением на другие приложения.';
- const c=await dialog.showMessageBox(win,{type:'question',title:'Экранный перевод',message:'Начать захват выбранной области экрана?',detail:detail+'\nПереключитесь в игру. Сессия ограничена 30 минутами; остановить можно из Nexora.',buttons:['Отмена','Начать'],defaultId:0,cancelId:0});
+ const detail=config.provider==='ocr'?'Распознавание выполняется локально.':'Распознанный английский текст выбранного окна или области будет передаваться сервису '+(config.provider==='deepl'?'DeepL':'MyMemory')+'. Изображения не отправляются. Не оставляйте в области личные данные; сервис имеет собственные правила и лимиты. В режиме окна захват приостанавливается при переключении; в режиме области следит за экраном. Не захватывайте личные данные.';
+ const c=await dialog.showMessageBox(win,{type:'question',title:'Экранный перевод',message:config.mode==='window'?'Начать перевод выбранного игрового окна?':'Начать захват выбранной области экрана?',detail:detail+'\nПереключитесь в игру. Сессия ограничена 30 минутами; остановить можно из Nexora.',buttons:['Отмена','Начать'],defaultId:0,cancelId:0});
  if(c.response!==1)return null;return translation.start(config);
 });
 safeHandler('translation:stop',()=>translation.stop());

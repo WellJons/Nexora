@@ -221,6 +221,22 @@ internal sealed class Scanner : IDisposable
     public void Dispose(){if(handle!=0)Win.CloseHandle(handle);handle=0;pid=0;hits.Clear();watches.Clear();watchMessage="";scanned=false;limited=false;readBytes=0;}
 }
 
+internal static class WindowInfo
+{
+    [StructLayout(LayoutKind.Sequential)] private struct Rect { public int left,top,right,bottom; }
+    [DllImport("user32.dll")] private static extern nint GetForegroundWindow();
+    [DllImport("user32.dll")] [return:MarshalAs(UnmanagedType.Bool)] private static extern bool IsWindow(nint h);
+    [DllImport("user32.dll")] [return:MarshalAs(UnmanagedType.Bool)] private static extern bool IsIconic(nint h);
+    [DllImport("user32.dll")] private static extern uint GetWindowThreadProcessId(nint h,out uint pid);
+    [DllImport("dwmapi.dll")] private static extern int DwmGetWindowAttribute(nint h,uint attribute,out Rect rect,uint size);
+    internal static object Get(string raw){
+        if(!long.TryParse(raw,out var id)||id<=0)throw new Exception("Invalid window");
+        nint h=(nint)id;if(!IsWindow(h))return new{exists=false};
+        GetWindowThreadProcessId(h,out uint pid);
+        if(pid==0||DwmGetWindowAttribute(h,9,out var r,(uint)Marshal.SizeOf<Rect>())!=0||r.right<=r.left||r.bottom<=r.top)return new{exists=false};
+        return new{exists=true,pid,foreground=GetForegroundWindow()==h&&!IsIconic(h),bounds=new{x=r.left,y=r.top,width=r.right-r.left,height=r.bottom-r.top}};
+    }
+}
 internal static class Program
 {
     private static string S(JsonElement j,string key)=>j.GetProperty(key).GetString()??throw new Exception("Missing "+key);
@@ -248,6 +264,7 @@ internal static class Program
             if(line.Length>32768)throw new Exception("Request too large.");
             using var doc=JsonDocument.Parse(line);var j=doc.RootElement;
             object? data=S(j,"op") switch {
+                "window-info"=>WindowInfo.Get(S(j,"handle")),
                 "list"=>Scanner.Processes(S(j,"root"),j.GetProperty("exact").GetBoolean()),
                 "attach"=>scanner.Attach(j.GetProperty("pid").GetInt32(),S(j,"root"),j.GetProperty("exact").GetBoolean()),
                 "scan"=>scanner.Scan(S(j,"kind"),N(j,"value")),
