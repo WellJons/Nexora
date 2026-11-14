@@ -128,7 +128,7 @@ safeHandler('translation:displays',()=>translation.displays());
 safeHandler('translation:windows',()=>translation.windows());
 safeHandler('translation:state',()=>translation.state());
 safeHandler('translation:model-state',()=>localModel.state());
-safeHandler('translation:model-install',async(pack='q8')=>{packFiles(pack);if(translation.state().running)throw Error('Остановите перевод перед установкой');const answer=await dialog.showMessageBox(win,{type:'question',title:'Локальный языковой пакет',message:'Скачать модель английский → русский?',detail:(pack==='fp32'?'Около 450 МБ, полные веса. ':'Около 250 МБ, квантованные веса. ')+'Загрузка выполняется один раз. Текст игры не отправляется. После скачивания перевод работает без API-ключей и интернета.',buttons:['Отмена','Скачать'],defaultId:0,cancelId:0});return answer.response===1?localModel.install(pack):localModel.state()});
+safeHandler('translation:model-install',async(pack='q8')=>{packFiles(pack);if(translation.state().running)throw Error('Остановите перевод перед установкой');const answer=await dialog.showMessageBox(win,{type:'question',title:'Локальный языковой пакет',message:'Скачать модель английский → русский?',detail:(pack==='m2m'?'Около 650 МБ, M2M100. ':pack==='fp32'?'Около 450 МБ, полные веса. ':'Около 250 МБ, квантованные веса. ')+'Загрузка выполняется один раз. Текст игры не отправляется. После скачивания перевод работает без API-ключей и интернета.',buttons:['Отмена','Скачать'],defaultId:0,cancelId:0});return answer.response===1?localModel.install(pack):localModel.state()});
 safeHandler('translation:model-cancel',()=>localModel.cancel());
 safeHandler('translation:start',async value=>{
  const config=translationSettings(value);

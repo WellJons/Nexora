@@ -35,7 +35,7 @@ function createSession({capture,ocr,send,canCapture=()=>true,translateFn=transla
   const hash=createHash('sha256').update(image).digest('hex'),same=hash===s.lastHash;if(same&&!s.more)return;
   const reused=spatial&&same&&Array.isArray(s.blocks);const result=reused?null:await ocr.recognize(image,spatial);if(active!==s||!canCapture())return;s.lastHash=hash;
   if(spatial){
-   const p=s.config.provider==='local'?profile(s.config.profile):null;const blocks=reused?s.blocks:textBlocks(result.blocks,frame.size,p?.pack==='fp32'?900:450,p?.pack==='fp32'?40:24),labels=[];s.blocks=blocks;let fresh=0;s.more=false;
+   const p=s.config.provider==='local'?profile(s.config.profile):null;const blocks=reused?s.blocks:textBlocks(result.blocks,frame.size,p?.width===2560?900:450,p?.width===2560?40:24),labels=[];s.blocks=blocks;let fresh=0;s.more=false;
    publish({ocrCount:state.ocrCount+(reused?0:1),elapsed:clock()-began,status:'Обработка игрового окна…',...(reused?{}:{labels:[]})});
    for(const b of blocks){
     if(active!==s||!canCapture())return;
