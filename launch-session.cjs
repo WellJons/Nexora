@@ -13,6 +13,7 @@ function createLaunchSession({findGame,scopeOf,launch,list,send=()=>{},clock=Dat
   try{
    if(clock()-s.start>=timeout){clear();session=null;emit({phase:'timeout',elapsed:clock()-s.start,message:'Игра ещё не обнаружена. Проверьте запуск в лаунчере или найдите процесс вручную.'});return}
    const rows=valid(await list(s.scope));if(session!==s||closed)return;
+   if(clock()-s.start>=timeout){session=null;clear();emit({phase:'timeout',elapsed:clock()-s.start,message:'Истекло время ожидания. Найдите процесс вручную.'});return}
    if(rows.length){found(s,rows);return}
    emit({phase:'waiting',elapsed:clock()-s.start,message:'Ожидание процесса игры…'});next(s)
   }catch(e){if(session!==s||closed)return;session=null;clear();emit({phase:'error',message:String(e.message||e).slice(0,300),processes:[]})}

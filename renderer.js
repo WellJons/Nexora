@@ -17,7 +17,7 @@ function launchDraw(){const root=$('#launch-status');root.replaceChildren();root
 window.nexora.onLaunchChange(value=>{launchStatus=value;launchDraw();if(page==='trainers'&&!memory.busy&&value.gameId===selected&&value.phase==='ready'&&!memory.session){memory.processes=value.processes;memory.pid=value.processes[0]?.pid??null;render()}});
 async function launchWithTools(id,shouldLaunch=true){if(launchBusy||launchPending()){toast('Сначала завершите текущее ожидание игры.');return}launchBusy=true;
  try{const r=await window.nexora.launchStart(id,shouldLaunch);data=r.data;launchStatus=r.session;launchDraw();if(page==='trainers'&&selected===id&&r.session.phase==='ready'&&!memory.session){memory.processes=r.session.processes;memory.pid=r.session.processes[0]?.pid??null}render()}catch(e){toast(e.message)}finally{launchBusy=false}}
-function openLaunchTrainer(){if(memory.session||memory.busy){toast('Сначала завершите текущую сессию трейнера.');return}if(launchStatus.phase!=='ready')return;selected=launchStatus.gameId;memoryReset();memory.processes=launchStatus.processes;memory.pid=memory.processes[0]?.pid??null;go('trainers')}
+async function openLaunchTrainer(){if(memory.session||memory.busy){toast('Сначала завершите текущую сессию трейнера.');return}if(launchStatus.phase!=='ready')return;const id=launchStatus.gameId;selected=id;memoryReset();go('trainers');await memoryTask(async()=>{const rows=await window.nexora.memoryList(id);if(selected!==id||memory.session)return;memory.processes=rows;memory.pid=rows[0]?.pid??null;if(!rows.length)toast('Игра уже закрыта или процесс изменился. Запусти её снова.')})}
 function heading(k,title,sub){const box=el('section');box.append(el('div','eyebrow',k),el('h1','',title),el('p','',sub));content.append(box)}
 function section(title,desc){const h=el('div','sectionhead');h.append(el('h2','',title),el('p','',desc));content.append(h)}
 function card(g){const wrap=el('article','game'+(selected===g.id?' selected':''));const cover=button('','cover',()=>selectGame(g));cover.setAttribute('aria-label','Выбрать '+g.name);cover.style.setProperty('--cover',g.color||'#43415f');cover.append(el('span','fallback',g.name));if(/^steam:\d+$/.test(g.id)){const img=el('img');img.alt='';img.loading='lazy';img.decoding='async';img.src='https://cdn.cloudflare.steamstatic.com/steam/apps/'+g.id.slice(6)+'/library_600x900.jpg';img.addEventListener('error',()=>img.remove(),{once:true});cover.append(img)}
@@ -125,7 +125,7 @@ function profilePage(){
 }
 const memory={gameId:null,processes:[],pid:null,session:null,kind:'int32',value:'',newValue:'',pinName:'',result:null,address:null,busy:false,error:'',drafts:new Map()};
 function memoryDraw(){if(page==='trainers')render()}
-function memoryReset(){Object.assign(memory,{gameId:selected,processes:[],pid:null,session:null,result:null,address:null,error:'',pinName:'',drafts:new Map()})}
+function memoryReset(){Object.assign(memory,{gameId:selected,processes:[],pid:null,session:null,result:null,address:null,error:'',kind:'int32',value:'',newValue:'',pinName:'',drafts:new Map()})}
 async function memoryTask(fn){if(memory.busy)return;memory.busy=true;memory.error='';memoryDraw();try{await fn()}catch(e){memory.error=e.message||String(e);toast(memory.error)}finally{memory.busy=false;memoryDraw()}}
 function readNumber(v){if(!String(v).trim())throw Error('Введите число');const n=Number(String(v).replace(',','.'));if(!Number.isFinite(n))throw Error('Некорректное число');return n}
 let recipeDraft={gameId:null,name:'',kind:'int32',target:'',notes:''},recipeBusy=false;
@@ -275,7 +275,7 @@ function releasePanel(){const b=el('section','localmodel');b.id='releasepanel';b
  if(releaseState.error)b.append(el('div','notice',releaseState.error));
  const row=el('div','profilequick');row.append(button(releaseState.busy?'Проверяем…':'Проверить обновления','primary',async()=>{releaseState.busy=true;releaseState.error='';drawRelease();try{releaseState.result=await window.nexora.checkUpdates()}catch(e){releaseState.error=e.message}finally{releaseState.busy=false;drawRelease()}},releaseState.busy),button('Открыть страницу релиза','secondary',()=>action(()=>window.nexora.openUpdates()),releaseState.busy));b.append(row);return b}
 function drawRelease(){const old=$('#releasepanel');if(old)old.replaceWith(releasePanel())}
-function render(){if(page!=='performance')stopPerf();content.replaceChildren();document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('active',b.dataset.page===page));window.nexoraDesign.navigate(page,content);
+function render(){if(page!=='performance')stopPerf();content.replaceChildren();document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('active',b.dataset.page===page));window.nexoraDesign.navigate(page,content);launchDraw();
  if(page==='translation'){translationPage();return}
  if(page==='guides'){guidePage();return}
  if(page==='profiles'){profilePage();return}
