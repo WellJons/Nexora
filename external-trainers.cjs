@@ -7,25 +7,26 @@ function packageFor(game){return PACKAGES.find(p=>game?.id===p.steamId)||null}
 function permanent(message){const e=Error(message);e.permanent=true;return e}
 async function fileInfo(file,type){
  if(typeof file!=='string'||!path.isAbsolute(file)||path.extname(file).toLowerCase()!=='.'+type)throw permanent('Выберите файл .'+type);
- const resolved=await fp.realpath(file),s=await fp.lstat(file);if(!s.isFile()||s.isSymbolicLink()||resolved.toLowerCase()!==path.resolve(file).toLowerCase()||s.size<16||s.size>(type==='exe'?MAX_EXE:MAX_CT))throw permanent('Недопустимый файл или ссылка');
- const hash=createHash('sha256');let head=Buffer.alloc(0),n=0;for await(const b of fs.createReadStream(file)){n+=b.length;if(n>s.size)throw permanent('Файл изменился');if(head.length<2)head=Buffer.concat([head,b.subarray(0,2-head.length)]);hash.update(b)}
+ const resolved=await fp.realpath(file),s=await fp.lstat(file);if(!s.isFile()||s.isSymbolicLink()||s.size<16||s.size>(type==='exe'?MAX_EXE:MAX_CT))throw permanent('Недопустимый файл или ссылка');
+ const hash=createHash('sha256');let head=Buffer.alloc(0),n=0;for await(const b of fs.createReadStream(resolved)){n+=b.length;if(n>s.size)throw permanent('Файл изменился');if(head.length<2)head=Buffer.concat([head,b.subarray(0,2-head.length)]);hash.update(b)}
  if(n!==s.size||type==='exe'&&head.toString()!=='MZ')throw permanent('Неверный формат файла');
  return {file:resolved,size:n,sha256:hash.digest('hex')}
 }
-async function verify(info,type){const now=await fileInfo(info.file,type);if(now.size!==info.size||now.sha256!==info.sha256)throw permanent('Файл изменился с момента согласия. Подключите его заново.');return now.file}
+async function verify(info,type){const now=await fileInfo(info.file,type);if(now.size!==info.size||now.sha256!==info.sha256||!samePath(now.file,info.file))throw permanent('Файл изменился с момента согласия. Подключите его заново.');return now.file}
 function allowed(url){return url.protocol==='https:'&&!url.username&&!url.password&&!url.port&&['github.com','release-assets.githubusercontent.com','objects.githubusercontent.com'].includes(url.hostname)}
 async function asset(url,signal,fetcher){let u=new URL(url);for(let i=0;i<5;i++){if(!allowed(u))throw permanent('Недоверенный адрес загрузки');const r=await fetcher(u,{signal,redirect:'manual'});if(![301,302,303,307,308].includes(r.status)){if(!r.ok||!r.body)throw Error('GitHub HTTP '+r.status);return r}const next=r.headers.get('location');await r.body?.cancel();if(!next)throw Error('Нет адреса загрузки');u=new URL(next,u)}throw Error('Слишком много перенаправлений')}
-async function directory(folder){await fp.mkdir(folder,{recursive:true});const s=await fp.lstat(folder);if(!s.isDirectory()||s.isSymbolicLink()||(await fp.realpath(folder)).toLowerCase()!==path.resolve(folder).toLowerCase())throw permanent('Недопустимая папка пакетов')}
+function samePath(a,b){const x=path.resolve(a),y=path.resolve(b);return process.platform==='win32'?x.toLowerCase()===y.toLowerCase():x===y}
+async function directory(folder,parent=null){await fp.mkdir(folder,{recursive:true});const s=await fp.lstat(folder),resolved=await fp.realpath(folder);if(!s.isDirectory()||s.isSymbolicLink()||parent&&!samePath(path.dirname(resolved),parent))throw permanent('Недопустимая папка пакетов');return resolved}
 async function preparePackage(p,root,{signal,fetcher=fetch,progress=()=>{}}){
  if(!p||!PACKAGES.includes(p))throw permanent('Неизвестный пакет');
- await directory(root);const folder=path.join(root,p.id);await directory(folder);const file=path.join(folder,p.name),expected={file,size:p.size,sha256:p.sha256};
+ root=await directory(root);const folder=await directory(path.join(root,p.id),root);const file=path.join(folder,p.name),expected={file,size:p.size,sha256:p.sha256};
  try{await verify(expected,'exe');return expected}catch(e){if(e.code!=='ENOENT')throw permanent('Кэш пакета изменён. Удалите его из менеджера и повторите загрузку.')}
  const tmp=path.join(folder,randomUUID()+'.tmp');try{const r=await asset(p.url,signal,fetcher);let n=0;const h=createHash('sha256');let head=Buffer.alloc(0);const guard=new Transform({transform(chunk,_e,cb){n+=chunk.length;if(n>p.size)return cb(Error('Размер пакета не совпадает'));if(head.length<2)head=Buffer.concat([head,chunk.subarray(0,2-head.length)]);h.update(chunk);progress(n,p.size);cb(null,chunk)}});
  await pipeline(Readable.fromWeb(r.body),guard,fs.createWriteStream(tmp,{flags:'wx'}),{signal});if(n!==p.size||head.toString()!=='MZ'||h.digest('hex')!==p.sha256)throw permanent('SHA-256 или размер пакета не совпадает.');
  if(signal.aborted)throw Error('Загрузка отменена');await fp.link(tmp,file);await verify(expected,'exe');return expected
  }finally{await fp.rm(tmp,{force:true}).catch(()=>{})}
 }
-async function cacheTable(root,bytes){const {inspect}=require('./ct-preview.cjs');inspect(bytes);await directory(root);const folder=path.join(root,'community-tables');await directory(folder);const sha256=createHash('sha256').update(bytes).digest('hex'),file=path.join(folder,sha256+'.ct'),item={file,size:bytes.length,sha256};try{await fp.writeFile(file,bytes,{flag:'wx'})}catch(e){if(e.code!=='EEXIST')throw e}await verify(item,'ct');return item}
+async function cacheTable(root,bytes){const {inspect}=require('./ct-preview.cjs');inspect(bytes);root=await directory(root);const folder=await directory(path.join(root,'community-tables'),root);const sha256=createHash('sha256').update(bytes).digest('hex'),file=path.join(folder,sha256+'.ct'),item={file,size:bytes.length,sha256};try{await fp.writeFile(file,bytes,{flag:'wx'})}catch(e){if(e.code!=='EEXIST')throw e}await verify(item,'ct');return item}
 function validInfo(v,type){return v&&typeof v.file==='string'&&path.isAbsolute(v.file)&&path.extname(v.file).toLowerCase()==='.'+type&&Number.isSafeInteger(v.size)&&v.size>=16&&v.size<=(type==='exe'?MAX_EXE:MAX_CT)&&/^[a-f0-9]{64}$/.test(v.sha256||'')}
 function validPreference(v,game){if(!v||v.gameId!==game?.id)return false;if(v.kind==='catalog'){const p=packageFor(game);return !!p&&v.packageId===p.id&&v.sha256===p.sha256}return v.kind==='local'&&validInfo(v.exe,'exe')&&(v.table===null||validInfo(v.table,'ct'))}
 function createExternal({root,findGame,getPrefs,setPrefs,send=()=>{},fetcher=fetch,spawnFn=spawn,platform=process.platform}){
@@ -42,7 +43,7 @@ function createExternal({root,findGame,getPrefs,setPrefs,send=()=>{},fetcher=fet
    if(running!==entry)throw permanent('Трейнер завершился');publish({phase:'started',message:'Внешний трейнер запущен. Проверьте подключение в его окне.',pid:child.pid});child.once('exit',()=>{if(running===entry){running=null;publish({phase:'closed',message:'Внешний трейнер закрыт.',pid:null})}});child.once('error',()=>{if(running===entry){running=null;publish({phase:'error',message:'Процесс трейнера завершился с ошибкой.',pid:null})}});child.unref?.();return {connected:true,adapter:'external',pid:child.pid}
   }catch(e){running=null;publish({phase:'error',message:String(e.message||e).slice(0,250),pid:null});throw permanent(String(e.message||e))}finally{busy=false;controller=null}
  }
- async function removeCache(id){const p=packageFor(findGame(id));if(!p||busy||running)throw permanent('Закройте трейнер');const folder=path.join(root,p.id),file=path.join(folder,p.name);try{await directory(root);await directory(folder);const s=await fp.lstat(file);if(!s.isFile()||s.isSymbolicLink())throw permanent('Неверный файл кэша');await fp.unlink(file)}catch(e){if(e.code!=='ENOENT')throw e}return info(id)}
+ async function removeCache(id){const p=packageFor(findGame(id));if(!p||busy||running)throw permanent('Закройте трейнер');try{const canonical=await directory(root),folder=await directory(path.join(canonical,p.id),canonical),file=path.join(folder,p.name);const s=await fp.lstat(file);if(!s.isFile()||s.isSymbolicLink())throw permanent('Неверный файл кэша');await fp.unlink(file)}catch(e){if(e.code!=='ENOENT')throw e}return info(id)}
  return {info,preference,set,launch,removeCache,active:()=>!!running||busy,cancel:()=>controller?.abort(),close:()=>controller?.abort()}
 }
 module.exports={PACKAGES,packageFor,fileInfo,verify,preparePackage,cacheTable,validPreference,createExternal};
