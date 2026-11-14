@@ -1,0 +1,2 @@
+const {parentPort,workerData}=require('node:worker_threads'),{get,scan}=require('./save-adapters.cjs');
+(async()=>{const {engine,op,args}=workerData;const a=get(engine);const result=op==='scan'?await scan(engine,...args):op==='open'?await a.openSave(...args):op==='export'?await a.exportSave(...args):(()=>{throw Error('Неизвестная операция')})();parentPort.postMessage({ok:true,result})})().catch(e=>parentPort.postMessage({ok:false,error:String(e.message||e)}));

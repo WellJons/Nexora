@@ -1,7 +1,7 @@
 const fs=require('node:fs'),path=require('node:path');
-const bundled=require('./data/game-profiles.json');
+const bundled=require('./data/game-profiles.json'),{capability}=require('./adapter-registry.cjs');
 const CATEGORIES=Object.freeze({currency:'Валюта',tools:'Инструменты',materials:'Материалы',gems:'Драгоценности',health:'Еда и лечение',ammo:'Боеприпасы',blocks:'Блоки',weapons:'Оружие',armor:'Экипировка',other:'Прочее'});
-const ENGINES=new Set(['bethesda-skyrim','bethesda-fallout4','minecraft','manual','gk2-save']);
+const ENGINES=new Set(['bethesda-skyrim','bethesda-fallout4','minecraft','manual','gk2-save','stardew-save']);
 const MAX=16*1024*1024;
 function text(v,n){if(typeof v!=='string'||!v.trim()||v.length>n||/[\x00-\x1f\x7f]/.test(v))throw Error('Invalid profile text');return v}
 function key(v){if(typeof v!=='string'||!/^[a-z0-9][a-z0-9_-]{0,63}$/.test(v))throw Error('Invalid identifier');return v}
@@ -30,10 +30,10 @@ function rebuild(){byId=new Map(active.games.map(g=>[g.id,g]));bySteam=new Map(a
 const find=id=>byId.get(id);
 function match(g){if(!g)return null;const steam=String(g.id||'').match(/^steam:(\d+)$/)?.[1];if(steam)return bySteam.get(steam)||null;
  if(String(g.id||'').startsWith('profile:'))return find(g.id.slice(8))?.id||null;
- const n=String(g.name||'').toLowerCase();const matches=active.games.filter(p=>p.aliases.some(a=>n.includes(a)));return matches.length===1?matches[0].id:null}
+ const normalize=s=>String(s||'').replace(/[™®©]/g,'').normalize('NFKC').toLowerCase().replace(/[^\p{L}\p{N}]+/gu,' ').trim();const n=normalize(g.name);const matches=active.games.filter(p=>[p.name,p.shortName,...p.aliases].some(a=>normalize(a)===n));return matches.length===1?matches[0].id:null}
 function metadata(){return active.games.map(({id,name,shortName,hint,engine,commands,items})=>({id,name,shortName,hint,engine,items:commands,itemCount:items.length}))}
 function summaries(){return active.games.map(g=>({id:g.id,name:g.name,shortName:g.shortName,engine:g.engine,itemCount:g.items.length,commandCount:g.commands.length}))}
-function details(id){const g=find(id);if(!g)throw Error('Профиль не найден');return {id:g.id,name:g.name,shortName:g.shortName,engine:g.engine,hint:g.hint,items:g.commands,itemCount:g.items.length}}
+function details(id){const g=find(id);if(!g)throw Error('Профиль не найден');return {id:g.id,name:g.name,shortName:g.shortName,engine:g.engine,hint:g.hint,items:g.commands,itemCount:g.items.length,capability:capability(g)}}
 function libraryEntries(){return active.games.map(g=>({id:g.steamIds.length?'steam:'+g.steamIds[0]:'profile:'+g.id,name:g.name,kind:g.steamIds.length?'steam':'catalog',installed:false,genre:'Игровой профиль'}))}
 function profileState(){return {revision:active.revision,count:active.games.length}}
 function loadCache(root){try{const file=path.join(root,'game-profiles-cache.json');const s=fs.lstatSync(file);if(!s.isFile()||s.isSymbolicLink()||s.size>MAX)return;const next=validate(JSON.parse(fs.readFileSync(file,'utf8')));if(next.revision>active.revision){active=next;rebuild()}}catch{}return profileState()}

@@ -12,7 +12,7 @@ function createAutoTrainer({resolve,connect,send=()=>{},schedule=setTimeout,unsc
  }
  function resume(id,pid){if(state.phase!=='ready'||state.gameId!==id||!Number.isSafeInteger(pid)||pid<=4)return false;const adapter=resolve(id);if(!adapter)return false;clear();const t={id,adapter,expectedPid:pid,start:clock(),attempt:0,running:false};token=t;emit({phase:'waiting-save',attempt:0,message:'Сохранение сменилось. Ищем новый игровой мир; прежние фиксации отключены.'});timer=schedule(()=>{timer=null;void attempt(t)},resumeDelay);return true}
  async function attempt(t){if(token!==t||t.running)return;if(t.attempt>=maxAttempts||clock()-t.start>=timeout){token=null;emit({phase:'failed',message:'Сохранение не обнаружено. Загрузи его и нажми «Подключить автоматически».'});return}
-  t.running=true;t.attempt++;emit({phase:'connecting',attempt:t.attempt,message:'Поиск текущего сохранения и игровых ресурсов…'});
+  t.running=true;t.attempt++;emit({phase:'connecting',attempt:t.attempt,message:t.adapter==='rcon'?'Проверяем локальный сервер…':'Поиск текущего сохранения и игровых ресурсов…'});
   try{const value=await connect(t.id,t.adapter,t.expectedPid);if(token!==t)return;if(value?.connected){token=null;emit({phase:'ready',message:'Трейнер подключён. Выбери нужные функции.'},value);return}throw Error(value?.warning||'Игровой мир ещё не готов')}
   catch(e){if(token!==t)return;if(e?.permanent||t.attempt>=maxAttempts||clock()-t.start>=timeout){token=null;emit({phase:'failed',message:String(e.message||e).slice(0,220)});return}emit({phase:'waiting-save',message:'Загрузи сохранение. Повторим поиск автоматически.'});timer=schedule(()=>{timer=null;void attempt(t)},interval)}
   finally{t.running=false}

@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "revision": 2,
+  "revision": 3,
   "games": [
     {
       "id": "skyrim",
@@ -11,7 +11,10 @@
         "72850"
       ],
       "aliases": [
-        "skyrim"
+        "skyrim",
+        "The Elder Scrolls V: Skyrim",
+        "The Elder Scrolls V: Skyrim Special Edition",
+        "Skyrim Special Edition"
       ],
       "engine": "bethesda-skyrim",
       "hint": "Открой пустую игровую консоль (~), раскладка ENG US. Проверь команду перед выполнением.",
@@ -360,7 +363,9 @@
       "shortName": "Minecraft",
       "steamIds": [],
       "aliases": [
-        "minecraft"
+        "minecraft",
+        "Minecraft Java Edition",
+        "Minecraft: Java Edition"
       ],
       "engine": "minecraft",
       "hint": "В собственном одиночном мире разреши команды. Прямое управление доступно для собственного локального выделенного сервера.",
@@ -567,6 +572,21 @@
       ],
       "engine": "gk2-save",
       "hint": "Встроенный редактор ресурсов в копии сохранения. Закрой игру перед выбором файла. Совместимость с реальным сохранением ещё не проверена.",
+      "commands": [],
+      "items": []
+    },
+    {
+      "id": "stardew-valley",
+      "name": "Stardew Valley",
+      "shortName": "Stardew Valley",
+      "steamIds": [
+        "413150"
+      ],
+      "aliases": [
+        "stardew valley"
+      ],
+      "engine": "stardew-save",
+      "hint": "Автоматическое обнаружение слотов и редактор ресурсов. Закрой игру перед экспортом и сохрани резервную копию. Это не live-трейнер.",
       "commands": [],
       "items": []
     }
