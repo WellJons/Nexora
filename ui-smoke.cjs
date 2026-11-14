@@ -1,5 +1,5 @@
 const fs=require('node:fs'),path=require('node:path');
-function runSmoke(win,app,profile){
+function runSmoke(win,app,profile,confirmDialog){
  const errors=[];win.webContents.on('console-message',(_event,level,message)=>{const msg=typeof level==='object'?level.message:message;const severity=typeof level==='object'?level.level:level;if(typeof msg==='string'&&(severity===3||severity==='error')&&!/Failed to load resource|net::ERR_|Not allowed to load local resource/i.test(msg))errors.push(msg.slice(0,500))});
  const deadline=setTimeout(()=>finish({ok:false,error:'UI smoke timeout'}),60000);
  let finished=false;
@@ -14,7 +14,8 @@ function runSmoke(win,app,profile){
     await win.webContents.executeJavaScript("document.querySelector('nav [data-page="+page+"]').click()",true);await new Promise(r=>setTimeout(r,450));
     const image=await win.webContents.capturePage();if(image.isEmpty())throw Error('Empty UI screenshot: '+page);fs.writeFileSync(path.join(screenshots,page+'.png'),image.toPNG());
    }
-  }finish({ok:true,...result})
+  }
+  const pending=confirmDialog.show({title:'Nexora',message:'Проверка подтверждения',detail:'Тестовое окно. Реальные файлы и игры не изменяются.',buttons:['Отмена','Продолжить'],cancelId:0,defaultId:0});const popup=confirmDialog.current();if(!popup)throw Error('Confirmation window missing');await new Promise((resolve,reject)=>{if(!popup.webContents.isLoading())return resolve();popup.webContents.once('did-finish-load',resolve);popup.webContents.once('did-fail-load',()=>reject(Error('Confirmation load failed')))});await new Promise(r=>setTimeout(r,400));const focused=await popup.webContents.executeJavaScript("document.activeElement?.id==='cancel'&&!document.getElementById('accept').disabled");if(!focused)throw Error('Safe confirmation default missing');const shot=await popup.webContents.capturePage();if(!shot.isEmpty())fs.writeFileSync(path.join(screenshots,'confirmation.png'),shot.toPNG());await popup.webContents.executeJavaScript("document.getElementById('cancel').click()",true).catch(()=>{});const answer=await pending;if(answer.response!==0)throw Error('Invalid cancellation');finish({ok:true,...result,confirmation:'cancelled safely'})
  }catch(e){finish({ok:false,error:String(e.message||e),errors})}});
 }
 module.exports={runSmoke};

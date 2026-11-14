@@ -62,6 +62,12 @@ russian.RemoveTitle=Удаление Nexora
 english.RemoveTitle=Remove Nexora
 russian.RemoveDesc=Служебные файлы, модели и кэш удаляются. Игры и моды остаются.
 english.RemoveDesc=Application files, language packs and cache are removed. Games and mods stay.
+russian.KeepTitle=Сохранить резервные копии (рекомендуется)
+english.KeepTitle=Keep backups (recommended)
+russian.PurgeTitle=Удалить внутренние резервные копии
+english.PurgeTitle=Remove internal backup copies
+russian.ConfirmPurge=Удалить внутренние копии Save Vault окончательно? Оригинальные сохранения вне хранилища остаются.
+english.ConfirmPurge=Permanently remove internal Save Vault copies? Original saves outside the vault remain.
 [Tasks]
 Name: "desktopicon"; Description: "{cm:Desktop}"; GroupDescription: "{cm:AdditionalIcons}"
 [Files]
@@ -144,8 +150,9 @@ begin
   begin
     Mode := 'keep';
     if not UninstallSilent then
-      if MsgBox(CustomMessage('Purge'), mbConfirmation, MB_YESNO or MB_DEFBUTTON2) = IDYES then
-        Mode := 'purge-backups';
+      if TaskDialogMsgBox(CustomMessage('RemoveTitle'), CustomMessage('RemoveDesc'), mbConfirmation, MB_YESNO, [CustomMessage('KeepTitle'), CustomMessage('PurgeTitle')], 0) = IDNO then
+        if MsgBox(CustomMessage('ConfirmPurge'), mbConfirmation, MB_YESNO or MB_DEFBUTTON2) = IDYES then
+          Mode := 'purge-backups';
     Code := -1;
     Helper := ExpandConstant('{app}\resources\app\native-bin\Nexora.Memory.exe');
     if (not Exec(Helper, '--uninstall-cleanup ' + Mode, '', SW_HIDE, ewWaitUntilTerminated, Code)) or (Code <> 0) then

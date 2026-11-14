@@ -71,3 +71,5 @@ button:not(:disabled):active{transform:scale(.98)}
 @media(max-height:760px){.sidebar nav{gap:7px}.navgroup-title{padding-top:3px}.sidebar nav button{padding-top:6px;padding-bottom:6px;min-height:31px}}
 .reduce-motion *,.reduce-motion *::before,.reduce-motion *::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+
+.quickicon svg{width:23px;height:23px;display:block}.quicktile:hover .quickicon svg{transform:scale(1.08);transition:transform .18s var(--ease)}
