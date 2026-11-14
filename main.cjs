@@ -1,4 +1,4 @@
-const {app,BrowserWindow,ipcMain,dialog,shell,session}=require('electron');
+const {app,BrowserWindow,ipcMain,dialog,shell,session,screen,globalShortcut}=require('electron');
 const fs=require('node:fs'),path=require('node:path');
 const {execFileSync,spawn}=require('node:child_process');
 const {randomUUID}=require('node:crypto');
@@ -7,7 +7,10 @@ const mods=require('./mods.cjs');
 const manager=require('./manager.cjs');
 const {makeMonitor}=require('./performance.cjs');
 const monitor=makeMonitor(require('systeminformation'));
-const {discoverEpic,epicUri,normalizeProfile,recordLaunch}=require('./library.cjs');
+const {createOverlay}=require('./overlay.cjs');
+let overlay;
+const {discoverEpic,epicUri,normalizeProfile,recordLaunch,contained}=require('./library.cjs');
+const {discoverGog}=require('./gog.cjs');
 const {gameScope,createBridge,numeric}=require('./memory-bridge.cjs');
 const bridge=createBridge(path.join(__dirname,'native-bin','Nexora.Memory.exe'));
 let activeGame=null;
@@ -26,12 +29,13 @@ function steamRoots(){
  try{const out=execFileSync('reg.exe',['query','HKCU\\Software\\Valve\\Steam','/v','SteamPath'],{encoding:'utf8',windowsHide:true,timeout:3000});const m=out.match(/REG_SZ\s+(.+)/i);if(m)roots.unshift(m[1].trim())}catch{}
  return [...new Set(roots)];
 }
-function refresh(scan=true){if(scan){const all=steamRoots().flatMap(discoverSteam);if(process.platform==='win32'&&process.env.ProgramData)all.push(...discoverEpic(path.join(process.env.ProgramData,'Epic','EpicGamesLauncher','Data','Manifests')));const manual=state.manual.map(g=>({...g,installed:typeof g.path==='string'&&fs.existsSync(g.path)}));games=mergeGames(all,manual)}return {games,favorites:state.favorites,history:state.history,backups:state.backups,downloads:state.downloads,installedMods:state.installedMods,profiles:state.profiles,launchLog:state.launchLog}}
+function gogGames(){if(process.platform!=='win32')return [];const result=[];for(const hive of ['HKLM\\SOFTWARE\\GOG.com\\Games','HKLM\\SOFTWARE\\WOW6432Node\\GOG.com\\Games']){try{result.push(...discoverGog(execFileSync('reg.exe',['query',hive,'/s'],{encoding:'utf8',windowsHide:true,timeout:3000,maxBuffer:8*1024*1024})))}catch{}}return result}
+function refresh(scan=true){if(scan){const all=[...steamRoots().flatMap(discoverSteam),...gogGames()];if(process.platform==='win32'&&process.env.ProgramData)all.push(...discoverEpic(path.join(process.env.ProgramData,'Epic','EpicGamesLauncher','Data','Manifests')));const manual=state.manual.map(g=>({...g,installed:typeof g.path==='string'&&fs.existsSync(g.path)}));games=mergeGames(all,manual)}return {games,favorites:state.favorites,history:state.history,backups:state.backups,downloads:state.downloads,installedMods:state.installedMods,profiles:state.profiles,launchLog:state.launchLog}}
 function safeHandler(name,fn){ipcMain.handle(name,async(e,...args)=>{if(!win||e.sender!==win.webContents||e.senderFrame!==win.webContents.mainFrame)throw Error('Invalid origin');return fn(...args)})}
 safeHandler('library:list',refresh);
 safeHandler('library:add',async()=>{const r=await dialog.showOpenDialog(win,{properties:['openFile'],filters:[{name:'Windows game',extensions:['exe']}]});if(r.canceled)return refresh();const p=r.filePaths[0];if(path.extname(p).toLowerCase()!=='.exe')throw Error('Выберите EXE игры');if(!state.manual.some(g=>g.path===p)){state.manual.push({id:'local:'+randomUUID(),name:path.basename(p,'.exe'),path:p,installed:true,kind:'local'});persist()}return refresh()});
 safeHandler('library:favorite',id=>{if(!games.some(g=>g.id===id))throw Error('Игра не найдена');state.favorites=state.favorites.includes(id)?state.favorites.filter(v=>v!==id):[...state.favorites,id];persist();return refresh()});
-safeHandler('library:launch',async id=>{const g=games.find(g=>g.id===id&&g.installed);if(!g)throw Error('Сначала установите или добавьте игру');if(g.kind==='steam'&&/^steam:\d+$/.test(g.id)){await shell.openExternal('steam://rungameid/'+g.id.slice(6))}else if(g.kind==='epic'){await shell.openExternal(epicUri(g))}else if(g.kind==='local'&&path.extname(g.path).toLowerCase()==='.exe'){await new Promise((resolve,reject)=>{const p=spawn(g.path,[],{cwd:path.dirname(g.path),detached:true,stdio:'ignore',windowsHide:false});p.once('error',reject);p.once('spawn',()=>{p.unref();resolve()})})}else throw Error('Неизвестный тип игры');state.history=[id,...state.history.filter(v=>v!==id)].slice(0,15);state.launchLog=recordLaunch(state.launchLog,g);persist();return refresh(false)});
+safeHandler('library:launch',async id=>{const g=games.find(g=>g.id===id&&g.installed);if(!g)throw Error('Сначала установите или добавьте игру');if(g.kind==='steam'&&/^steam:\d+$/.test(g.id)){await shell.openExternal('steam://rungameid/'+g.id.slice(6))}else if(g.kind==='epic'){await shell.openExternal(epicUri(g))}else if(g.kind==='gog'||g.kind==='local'&&path.extname(g.path).toLowerCase()==='.exe'){const exe=g.kind==='gog'?contained(g.path,path.relative(g.path,g.exe)):g.path;if(!exe)throw Error('Исполняемый файл игры не найден');await new Promise((resolve,reject)=>{const p=spawn(exe,[],{cwd:path.dirname(exe),detached:true,stdio:'ignore',windowsHide:false});p.once('error',reject);p.once('spawn',()=>{p.unref();resolve()})})}else throw Error('Неизвестный тип игры');state.history=[id,...state.history.filter(v=>v!==id)].slice(0,15);state.launchLog=recordLaunch(state.launchLog,g);persist();return refresh(false)});
 const vaultRoot=()=>path.join(app.getPath('userData'),'backups');
 safeHandler('saves:backup',id=>saveExclusive(async()=>{const g=games.find(g=>g.id===id);if(!g)throw Error('Выберите игру');const r=await dialog.showOpenDialog(win,{title:'Выберите папку сохранений (игра должна быть закрыта)',properties:['openDirectory']});if(r.canceled)return null;const target=await vault.snapshot(r.filePaths[0],vaultRoot());state.backups.unshift({id:randomUUID(),game:g.name,gameId:g.id,...target,date:new Date().toISOString()});persist();return refresh(false)}));
 safeHandler('saves:export',id=>saveExclusive(async()=>{const b=state.backups.find(v=>v.id===id);if(!b)throw Error('Копия не найдена');const r=await dialog.showOpenDialog(win,{title:'Выберите папку для извлечения (создастся отдельная папка)',properties:['openDirectory']});if(r.canceled)return null;const result=await vault.exportCopy(b,r.filePaths[0]);return {path:result.path}}));
@@ -92,6 +96,9 @@ safeHandler('memory:watch-stop',address=>{attached();return bridge.request('watc
 safeHandler('memory:watch-remove',address=>{attached();return bridge.request('watch-remove',{address:addressOf(address)})});
 safeHandler('memory:stop-all',()=>{attached();return bridge.request('stop-all')});
 safeHandler('memory:detach',()=>{activeGame=null;bridge.close();return true});
-app.on('before-quit',()=>bridge.close());
-app.whenReady().then(()=>{load();session.defaultSession.setPermissionRequestHandler((_wc,_permission,cb)=>cb(false));win=new BrowserWindow({width:1280,height:850,minWidth:780,minHeight:620,backgroundColor:'#14151c',autoHideMenuBar:true,title:'Nexora',webPreferences:{preload:path.join(__dirname,'preload.cjs'),contextIsolation:true,nodeIntegration:false,sandbox:true}});win.webContents.setWindowOpenHandler(()=>({action:'deny'}));win.webContents.on('will-navigate',e=>e.preventDefault());win.loadFile('index.html')});
+safeHandler('hud:state',()=>overlay.state());
+safeHandler('hud:configure',v=>overlay.configure(v));
+safeHandler('hud:toggle',()=>overlay.toggle());
+app.on('before-quit',()=>{bridge.close();overlay?.close()});
+app.whenReady().then(()=>{load();session.defaultSession.setPermissionRequestHandler((_wc,_permission,cb)=>cb(false));win=new BrowserWindow({width:1280,height:850,minWidth:780,minHeight:620,backgroundColor:'#14151c',autoHideMenuBar:true,title:'Nexora',webPreferences:{preload:path.join(__dirname,'preload.cjs'),contextIsolation:true,nodeIntegration:false,sandbox:true}});win.webContents.setWindowOpenHandler(()=>({action:'deny'}));win.webContents.on('will-navigate',e=>e.preventDefault());overlay=createOverlay({BrowserWindow,screen,globalShortcut,ipcMain,monitor,dir:__dirname,onChange:value=>{if(win&&!win.isDestroyed())win.webContents.send('hud:changed',value)}});win.on('closed',()=>{overlay.close();app.quit()});win.loadFile('index.html')});
 app.on('window-all-closed',()=>app.quit());

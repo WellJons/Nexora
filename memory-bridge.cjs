@@ -1,6 +1,6 @@
 const fs=require('node:fs'),path=require('node:path'),{spawn}=require('node:child_process'),readline=require('node:readline');
 function gameScope(g){
- if(!g?.installed||!['steam','epic','local'].includes(g.kind)||typeof g.path!=='string')throw Error('Выберите установленную игру');
+ if(!g?.installed||!['steam','epic','gog','local'].includes(g.kind)||typeof g.path!=='string')throw Error('Выберите установленную игру');
  const root=fs.realpathSync(g.path),stat=fs.statSync(root),exact=g.kind==='local';
  if(exact?(!stat.isFile()||path.extname(root).toLowerCase()!=='.exe'):(!stat.isDirectory()||path.dirname(root)===root))throw Error('Неверный путь игры');
  const blocked=[process.env.SystemRoot,process.env.ProgramData,process.env.USERPROFILE].filter(Boolean).map(p=>path.resolve(p).toLowerCase());
