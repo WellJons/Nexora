@@ -5,7 +5,7 @@ using System.Text.Json.Nodes;
 internal static class Cleanup
 {
     private static readonly string[] Owned = {
-        "translation-models","scratch","Cache","Code Cache","GPUCache","DawnCache","DawnGraphiteCache","DawnWebGPUCache","Dictionaries","Network","Local Storage","Session Storage","IndexedDB","blob_storage","Crashpad","logs","WebStorage","SharedStorage","Service Worker","File System","databases","Partitions","VideoDecodeStats",
+        "translation-models","scratch","updates","Cache","Code Cache","GPUCache","DawnCache","DawnGraphiteCache","DawnWebGPUCache","Dictionaries","Network","Local Storage","Session Storage","IndexedDB","blob_storage","Crashpad","logs","WebStorage","SharedStorage","Service Worker","File System","databases","Partitions","VideoDecodeStats",
         "Preferences","Local State","SingletonLock","SingletonCookie","SingletonSocket","DevToolsActivePort","Cookies","Cookies-journal","TransportSecurity","Visited Links","Trust Tokens","Trust Tokens-journal","DIPS","DIPS-wal","DIPS-shm","SharedStorage-wal","SharedStorage-shm","library.json.tmp","LOCK","LOG","LOG.old"
     };
     private static bool Reparse(string file) => (File.GetAttributes(file)&FileAttributes.ReparsePoint)!=0;

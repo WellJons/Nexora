@@ -93,3 +93,35 @@ jobs:
       - run: node scripts/local-translate-smoke.cjs ./local-model.cjs advanced
       - run: node scripts/local-translate-smoke.cjs ./local-model.cjs quality
         if: always()
+
+  publish:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && contains(github.event.head_commit.message, '[publish-alpha]')
+    needs: [windows]
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: Nexora-Setup-Windows-x64
+          path: release
+      - name: Publish tested installer as GitHub prerelease
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $v = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          $tag = "v$v"
+          $exe = "release/Nexora-Setup-$v-x64.exe"
+          $sha = "$exe.sha256"
+          if (!(Test-Path $exe) -or !(Test-Path $sha)) { throw 'Missing installer' }
+          $expected = ((Get-Content $sha -Raw).Trim() -split '\s+')[0]
+          if ((Get-FileHash $exe -Algorithm SHA256).Hash -ne $expected) { throw 'Installer digest mismatch' }
+          gh release create $tag --repo $env:GITHUB_REPOSITORY --target $env:GITHUB_SHA --title "Nexora $v Alpha" --notes "Windows x64. First public test build. Unsigned installer. Built-in game commands, local translator, mod manager and verified update download. Tested in CI; real game compatibility is not yet verified." --draft --prerelease
+          if ($LASTEXITCODE -ne 0) { throw 'Failed to create release' }
+          gh release upload $tag $exe $sha --repo $env:GITHUB_REPOSITORY
+          if ($LASTEXITCODE -ne 0) { throw 'Failed to upload release' }
+          gh release edit $tag --draft=false --repo $env:GITHUB_REPOSITORY
+          if ($LASTEXITCODE -ne 0) { throw 'Failed to publish release' }

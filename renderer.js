@@ -156,8 +156,14 @@ function sessionPanel(body){
  if(watches.length){const a=el('div','profilequick');a.append(button('Обновить значения','secondary',()=>memoryTask(async()=>{memory.result=await window.nexora.memoryResults()}),memory.busy),button('Остановить заморозку','secondary',()=>memoryTask(async()=>{memory.result=await window.nexora.memoryStopAll()}),memory.busy||!watches.some(w=>w.frozen)));section.append(a)}
  body.append(section);
 }
+let readyCommands=null,commandGame='skyrim';
+function commandPanel(){const panel=el('section','recipepanel');panel.append(el('div','eyebrow','GAME COMMANDS · BUILT-IN'),el('h2','','Готовые игровые команды'),el('p','memoryhint','Штатные команды для одиночных игр. Не требуют поиска адресов. Nexora копирует команду; введи её в консоли самой игры. Это не автоматические переключатели. Создай отдельное сохранение.'));
+ if(!readyCommands){readyCommands=[];window.nexora.gameCommands().then(v=>{readyCommands=v;if(page==='trainers')render()}).catch(e=>toast(e.message));return panel}
+ const picker=el('select','modinput');for(const game of readyCommands){const o=el('option','',game.name);o.value=game.id;picker.append(o)}picker.value=commandGame;picker.addEventListener('change',()=>{commandGame=picker.value;render()});panel.append(picker);const game=readyCommands.find(g=>g.id===commandGame);if(!game)return panel;panel.append(el('p','memoryhint',game.hint));
+ for(const r of game.items){const row=el('div','recipeitem'),words=el('div');words.append(el('strong','',r.name),el('code','command-code',r.command));row.append(words,button('Копировать','secondary',async()=>{try{await window.nexora.copyGameCommand(game.id,r.id);toast('Команда скопирована. Введи её в игре.')}catch(e){toast(e.message)}}));panel.append(row)}return panel
+}
 function trainerPage(){
- heading('NEXORA ENGINE','Трейнеры','Встроенный редактор игровых значений. Ничего отдельно устанавливать не нужно.');
+ heading('NEXORA ENGINE','Трейнеры','Встроенный редактор игровых значений. Ничего отдельно устанавливать не нужно.');content.append(commandPanel());
  if(!data.games.length){content.append(el('div','empty','Добавьте игру.'));return}
  if(memory.session&&!memory.busy)selected=memory.gameId;
  if(memory.gameId!==selected&&!memory.session&&!memory.busy)memoryReset();
@@ -269,11 +275,21 @@ function optimizerPage(){heading('NEXORA GAME MODE','Игровой режим',
  const modes=el('div','sourcebar');for(const [boost,title,sub] of [[false,'Стандартный','Мониторинг без изменений'],[true,'Приоритет игры','Above Normal · до 30 минут']]){const b=button('','sourcecard'+(playUI.boost===boost?' active':''),()=>{playUI.boost=boost;render()},locked);b.append(el('strong','',title),el('small','',sub));modes.append(b)}hero.append(modes,el('p','memoryhint','Не отключает службы, антивирус и фоновые приложения. Не обещает прирост FPS. При аварийном отключении приоритет может остаться до завершения игры.'),button('▶ Начать сессию','primary',()=>playAction(()=>window.nexora.playStart(playUI.gameId,playUI.pid,playUI.boost)),locked||!playUI.pid));if(playUI.error)hero.append(el('div','notice',playUI.error));content.append(hero,playLive());
  section('История сессий','Последние 100 записей');const list=el('div','sessionhistory');for(const r of s.history){const item=el('article','sessionrow'),label=el('div');label.append(el('strong','',r.name),el('small','',new Date(r.started).toLocaleString('ru-RU')+' · '+({manual:'Завершена', 'game-exited':'Игра закрыта',interrupted:'Прервана'}[r.reason]||'Завершена')));item.append(label,el('span','',duration(r.seconds)),el('small','','CPU '+percentPlay(r.cpu)+' · GPU '+percentPlay(r.gpu)+' · RAM '+percentPlay(r.ram)));list.append(item)}if(!list.children.length)list.append(el('div','empty','Здесь появятся записи после завершения первой сессии.'));content.append(list);
 }
-let releaseState={busy:false,result:null,error:''};
-function releasePanel(){const b=el('section','localmodel');b.id='releasepanel';b.append(el('div','eyebrow','NEXORA UPDATES'),el('h2','','Обновления программы'),el('p','','Проверка официальных выпусков Nexora на GitHub. Установка новой версии выполняется только пользователем.'));
- const r=releaseState.result;if(r){b.append(el('p','',r.available?'Доступна версия '+r.latest.version:r.latest?'Новых опубликованных версий нет.':'Готовых релизов с установщиком пока нет.'));if(r.available&&r.latest.notes)b.append(el('p','release-notes',r.latest.notes))}
- if(releaseState.error)b.append(el('div','notice',releaseState.error));
- const row=el('div','profilequick');row.append(button(releaseState.busy?'Проверяем…':'Проверить обновления','primary',async()=>{releaseState.busy=true;releaseState.error='';drawRelease();try{releaseState.result=await window.nexora.checkUpdates()}catch(e){releaseState.error=e.message}finally{releaseState.busy=false;drawRelease()}},releaseState.busy),button('Открыть страницу релиза','secondary',()=>action(()=>window.nexora.openUpdates()),releaseState.busy));b.append(row);return b}
+let releaseState={busy:false,result:null,error:'',download:{phase:'idle'}};
+function autoUpdateEnabled(){try{return localStorage.getItem('nexora-auto-check')!=='off'}catch{return true}}
+async function checkRelease(notify=false){if(releaseState.busy)return;releaseState.busy=true;releaseState.error='';drawRelease();try{releaseState.result=await window.nexora.checkUpdates();if(notify&&releaseState.result.available)toast('Доступна Nexora '+releaseState.result.latest.version+' · Настройки')}catch(e){releaseState.error=e.message}finally{releaseState.busy=false;drawRelease()}}
+async function runUpdate(){try{await window.nexora.downloadUpdate()}catch(e){releaseState.error=e.message;drawRelease()}}
+window.nexora.onUpdateChange(v=>{releaseState.download=v;drawRelease()});
+function releasePanel(){const b=el('section','localmodel');b.id='releasepanel';b.append(el('div','eyebrow','NEXORA UPDATES'),el('h2','','Обновления программы'),el('p','','Автоматическая проверка GitHub при запуске. Скачивание по кнопке, проверка SHA-256 и установка после подтверждения.'));
+ const r=releaseState.result,s=releaseState.download,down=s.phase==='downloading';if(r){b.append(el('p','',r.available?'Доступна версия '+r.latest.version:r.latest?'Установлена актуальная версия.':'Опубликованных выпусков пока нет.'));if(r.available&&r.latest.notes)b.append(el('p','release-notes',r.latest.notes))}
+ if(down){const progress=el('progress','update-progress');progress.max=s.total||1;progress.value=s.downloaded||0;b.append(progress,el('p','memoryhint',Math.round((s.downloaded||0)/1048576)+' / '+Math.round((s.total||0)/1048576)+' МиБ'))}
+ if(s.phase==='ready')b.append(el('p','memorylive','● Установщик проверен и готов к запуску'));
+ if(releaseState.error||s.error)b.append(el('div','notice',releaseState.error||s.error));
+ const row=el('div','profilequick'),auto=button(autoUpdateEnabled()?'Автопроверка: вкл.':'Автопроверка: выкл.','secondary',()=>{try{localStorage.setItem('nexora-auto-check',autoUpdateEnabled()?'off':'on')}catch{}drawRelease()});row.append(button('Проверить обновления','secondary',()=>checkRelease(),releaseState.busy||down),auto);
+ if(down)row.append(button('Отменить','secondary',()=>window.nexora.cancelUpdate().catch(e=>toast(e.message))));
+ else if(s.phase==='ready')row.append(button('Установить обновление','primary',async()=>{try{await window.nexora.installUpdate()}catch(e){toast(e.message)}}));
+ else if(r?.available)row.append(button('Обновить','primary',runUpdate));
+ row.append(button('Страница релиза','secondary',()=>window.nexora.openUpdates().catch(e=>toast(e.message))));b.append(row);return b}
 function drawRelease(){const old=$('#releasepanel');if(old)old.replaceWith(releasePanel())}
 function render(){if(page!=='performance')stopPerf();content.replaceChildren();document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('active',b.dataset.page===page));window.nexoraDesign.navigate(page,content);launchDraw();
  if(page==='translation'){translationPage();return}
@@ -286,7 +302,7 @@ function render(){if(page!=='performance')stopPerf();content.replaceChildren();d
  if(page==='downloads'){downloads();return}
  if(page==='manager'){managedPage();return}
  if(page==='saves'){savePage();return}
- if(page==='settings'){heading('PREFERENCES','Настройки','Nexora работает локально, не требует аккаунта.');for(const [a,b] of [['Версия','0.24.1 · Alpha'],['Интерфейс','Русский · Midnight Violet'],['Данные','Библиотека и резервные копии хранятся в папке данных приложения.'],['Трейнеры','Встроенный редактор и сессионные трейнеры. Личные шаблоны сохраняются; готовые пресеты и импорт CT пока недоступны.']]){const item=el('section','setting');item.append(el('h2','',a),el('p','',b));content.append(item)}const motion=el('section','setting motion-setting'),text=el('div');text.append(el('h2','','Анимации'),el('p','','Плавные переходы и эффекты при взаимодействии. Системная настройка уменьшения движения учитывается.'));const toggle=button(window.nexoraDesign.motionEnabled()?'Включены':'Отключены','motion-toggle'+(window.nexoraDesign.motionEnabled()?' on':''),()=>{window.nexoraDesign.setMotion(!window.nexoraDesign.motionEnabled());render()});toggle.setAttribute('role','switch');toggle.setAttribute('aria-checked',String(window.nexoraDesign.motionEnabled()));motion.append(text,toggle);content.append(motion,releasePanel());return}
+ if(page==='settings'){heading('PREFERENCES','Настройки','Nexora работает локально, не требует аккаунта.');for(const [a,b] of [['Версия','0.25.0 · Alpha'],['Интерфейс','Русский · Midnight Violet'],['Данные','Библиотека и резервные копии хранятся в папке данных приложения.'],['Трейнеры','Встроенный редактор и сессионные трейнеры. Личные шаблоны сохраняются; готовые консольные команды доступны; автоматические игровые пресеты и импорт CT пока недоступны.']]){const item=el('section','setting');item.append(el('h2','',a),el('p','',b));content.append(item)}const motion=el('section','setting motion-setting'),text=el('div');text.append(el('h2','','Анимации'),el('p','','Плавные переходы и эффекты при взаимодействии. Системная настройка уменьшения движения учитывается.'));const toggle=button(window.nexoraDesign.motionEnabled()?'Включены':'Отключены','motion-toggle'+(window.nexoraDesign.motionEnabled()?' on':''),()=>{window.nexoraDesign.setMotion(!window.nexoraDesign.motionEnabled());render()});toggle.setAttribute('role','switch');toggle.setAttribute('aria-checked',String(window.nexoraDesign.motionEnabled()));motion.append(text,toggle);content.append(motion,releasePanel());return}
  libraryPage();
 
 }
@@ -297,3 +313,6 @@ $('#add').addEventListener('click',()=>action(()=>window.nexora.add()));
 document.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='k'){e.preventDefault();$('#search').focus()}});
 action(()=>window.nexora.list());
 window.nexora.launchState().then(s=>{launchStatus=s;launchDraw()}).catch(()=>{});
+
+window.nexora.updateState().then(v=>{releaseState.download=v;drawRelease()}).catch(()=>{});
+if(autoUpdateEnabled())setTimeout(()=>checkRelease(true),4000);

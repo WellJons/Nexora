@@ -1,6 +1,8 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const catalog = [
+ {id:'steam:489830',name:'The Elder Scrolls V: Skyrim Special Edition',genre:'Фэнтези · RPG',color:'#414754'},
+ {id:'steam:377160',name:'Fallout 4',genre:'Постапокалипсис · RPG',color:'#37564c'},
  {id:'steam:4358690',name:'Graveyard Keeper 2',genre:'Симулятор · RPG',color:'#472149'},
  {id:'steam:1091500',name:'Cyberpunk 2077',genre:'Открытый мир · RPG',color:'#665919'},
  {id:'steam:1086940',name:"Baldur's Gate 3",genre:'Фэнтези · RPG',color:'#25435e'},

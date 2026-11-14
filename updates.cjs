@@ -7,7 +7,7 @@ function selectRelease(rows,current){
  const candidates=rows.filter(r=>r&&!r.draft&&parts(r.tag_name)).map(r=>{
   const version=r.tag_name.replace(/^v/,''),name='Nexora-Setup-'+version+'-x64.exe',page=BASE+'/tag/'+r.tag_name,asset=BASE+'/download/'+r.tag_name+'/'+name;
   const files=Array.isArray(r.assets)?r.assets:[],setup=files.find(x=>x.name===name&&x.browser_download_url===asset&&Number.isSafeInteger(x.size)&&x.size>0),checksum=files.find(x=>x.name===name+'.sha256'&&x.browser_download_url===asset+'.sha256');
-  return {version,page,prerelease:!!r.prerelease,installer:!!setup&&!!checksum,size:setup?.size||0,notes:typeof r.body==='string'?r.body.slice(0,5000):''}
+  return {version,page,asset,shaUrl:asset+'.sha256',name,prerelease:!!r.prerelease,installer:!!setup&&!!checksum,size:setup?.size||0,notes:typeof r.body==='string'?r.body.slice(0,5000):''}
  }).filter(r=>r.installer).sort((a,b)=>compare(b.version,a.version));
  const latest=candidates[0];return {current,latest:latest||null,available:!!latest&&compare(latest.version,current)>0,releasePage:BASE,checkedAt:new Date().toISOString()};
 }
