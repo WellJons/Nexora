@@ -277,18 +277,19 @@ function optimizerPage(){heading('NEXORA GAME MODE','Игровой режим',
 }
 let releaseState={busy:false,result:null,error:'',download:{phase:'idle'}};
 function autoUpdateEnabled(){try{return localStorage.getItem('nexora-auto-check')!=='off'}catch{return true}}
-async function checkRelease(notify=false){if(releaseState.busy)return;releaseState.busy=true;releaseState.error='';drawRelease();try{releaseState.result=await window.nexora.checkUpdates();if(notify&&releaseState.result.available)toast('Доступна Nexora '+releaseState.result.latest.version+' · Настройки')}catch(e){releaseState.error=e.message}finally{releaseState.busy=false;drawRelease()}}
-async function runUpdate(){try{await window.nexora.downloadUpdate()}catch(e){releaseState.error=e.message;drawRelease()}}
+function autoDownloadEnabled(){try{return localStorage.getItem('nexora-auto-download')==='on'}catch{return false}}
+async function checkRelease(notify=false){if(releaseState.busy)return;releaseState.busy=true;releaseState.error='';drawRelease();try{releaseState.result=await window.nexora.checkUpdates();if(notify&&releaseState.result.available){toast('Доступна Nexora '+releaseState.result.latest.version+' · Настройки');if(autoDownloadEnabled()&&!['ready','downloading'].includes(releaseState.download.phase))void runUpdate(true)}}catch(e){releaseState.error=e.message}finally{releaseState.busy=false;drawRelease()}}
+async function runUpdate(notify=false){try{const result=await window.nexora.downloadUpdate();if(notify&&result.phase==='ready')toast('Обновление загружено · Настройки → Установить')}catch(e){releaseState.error=e.message;drawRelease()}}
 window.nexora.onUpdateChange(v=>{releaseState.download=v;drawRelease()});
-function releasePanel(){const b=el('section','localmodel');b.id='releasepanel';b.append(el('div','eyebrow','NEXORA UPDATES'),el('h2','','Обновления программы'),el('p','','Автоматическая проверка GitHub при запуске. Скачивание по кнопке, проверка SHA-256 и установка после подтверждения.'));
+function releasePanel(){const b=el('section','localmodel');b.id='releasepanel';b.append(el('div','eyebrow','NEXORA UPDATES'),el('h2','','Обновления программы'),el('p','','Автоматическая проверка GitHub при запуске. Автозагрузка по желанию, проверка SHA-256 и установка после подтверждения.'));
  const r=releaseState.result,s=releaseState.download,down=s.phase==='downloading';if(r){b.append(el('p','',r.available?'Доступна версия '+r.latest.version:r.latest?'Установлена актуальная версия.':'Опубликованных выпусков пока нет.'));if(r.available&&r.latest.notes)b.append(el('p','release-notes',r.latest.notes))}
  if(down){const progress=el('progress','update-progress');progress.max=s.total||1;progress.value=s.downloaded||0;b.append(progress,el('p','memoryhint',Math.round((s.downloaded||0)/1048576)+' / '+Math.round((s.total||0)/1048576)+' МиБ'))}
  if(s.phase==='ready')b.append(el('p','memorylive','● Установщик проверен и готов к запуску'));
  if(releaseState.error||s.error)b.append(el('div','notice',releaseState.error||s.error));
- const row=el('div','profilequick'),auto=button(autoUpdateEnabled()?'Автопроверка: вкл.':'Автопроверка: выкл.','secondary',()=>{try{localStorage.setItem('nexora-auto-check',autoUpdateEnabled()?'off':'on')}catch{}drawRelease()});row.append(button('Проверить обновления','secondary',()=>checkRelease(),releaseState.busy||down),auto);
+ const row=el('div','profilequick'),auto=button(autoUpdateEnabled()?'Автопроверка: вкл.':'Автопроверка: выкл.','secondary',()=>{try{localStorage.setItem('nexora-auto-check',autoUpdateEnabled()?'off':'on')}catch{}drawRelease()});row.append(button('Проверить обновления','secondary',()=>checkRelease(),releaseState.busy||down),auto,button(autoDownloadEnabled()?'Автозагрузка: вкл.':'Автозагрузка: выкл.','secondary',()=>{try{localStorage.setItem('nexora-auto-download',autoDownloadEnabled()?'off':'on')}catch{}drawRelease()},down));
  if(down)row.append(button('Отменить','secondary',()=>window.nexora.cancelUpdate().catch(e=>toast(e.message))));
  else if(s.phase==='ready')row.append(button('Установить обновление','primary',async()=>{try{await window.nexora.installUpdate()}catch(e){toast(e.message)}}));
- else if(r?.available)row.append(button('Обновить','primary',runUpdate));
+ else if(r?.available)row.append(button('Обновить','primary',()=>runUpdate()));
  row.append(button('Страница релиза','secondary',()=>window.nexora.openUpdates().catch(e=>toast(e.message))));b.append(row);return b}
 function drawRelease(){const old=$('#releasepanel');if(old)old.replaceWith(releasePanel())}
 function render(){if(page!=='performance')stopPerf();content.replaceChildren();document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('active',b.dataset.page===page));window.nexoraDesign.navigate(page,content);launchDraw();

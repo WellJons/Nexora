@@ -1,14 +1,14 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const catalog = [
- {id:'steam:489830',name:'The Elder Scrolls V: Skyrim Special Edition',genre:'Фэнтези · RPG',color:'#414754'},
- {id:'steam:377160',name:'Fallout 4',genre:'Постапокалипсис · RPG',color:'#37564c'},
  {id:'steam:4358690',name:'Graveyard Keeper 2',genre:'Симулятор · RPG',color:'#472149'},
  {id:'steam:1091500',name:'Cyberpunk 2077',genre:'Открытый мир · RPG',color:'#665919'},
  {id:'steam:1086940',name:"Baldur's Gate 3",genre:'Фэнтези · RPG',color:'#25435e'},
  {id:'steam:1245620',name:'Elden Ring',genre:'Экшен · RPG',color:'#454b36'},
  {id:'steam:1174180',name:'Red Dead Redemption 2',genre:'Приключения',color:'#6d2523'},
- {id:'steam:292030',name:'The Witcher 3: Wild Hunt',genre:'Фэнтези · RPG',color:'#443d37'}
+ {id:'steam:292030',name:'The Witcher 3: Wild Hunt',genre:'Фэнтези · RPG',color:'#443d37'},
+ {id:'steam:489830',name:'The Elder Scrolls V: Skyrim Special Edition',genre:'Фэнтези · RPG',color:'#414754'},
+ {id:'steam:377160',name:'Fallout 4',genre:'Постапокалипсис · RPG',color:'#37564c'},
 ];
 function read(p){try{return fs.readFileSync(p,'utf8')}catch{return ''}}
 function field(s,k){const m=s.match(new RegExp('"'+k+'"\\s*"((?:\\\\.|[^"\\\\])*)"','i'));return m?m[1].replace(/\\\\/g,'\\').replace(/\\"/g,'"'):''}
