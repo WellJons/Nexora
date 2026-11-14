@@ -27,6 +27,7 @@ jobs:
         run: |
           if (!(Test-Path dist/Nexora-win32-x64/Nexora.exe)) { throw 'Executable missing' }
           if (!(Test-Path dist/Nexora-win32-x64/resources/app/node_modules/systeminformation/package.json)) { throw 'Runtime dependency missing' }
+          node -e "require('./dist/Nexora-win32-x64/resources/app/node_modules/systeminformation'); console.log('Runtime dependency loads')"
       - uses: actions/upload-artifact@v4
         with:
           name: Nexora-Windows-x64

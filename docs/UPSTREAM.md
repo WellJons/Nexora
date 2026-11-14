@@ -18,3 +18,5 @@ Before incorporating upstream code, check its exact license and compatibility, p
 - `electron` (MIT and bundled third-party notices): desktop runtime. Packaged distribution retains Electron license files.
 
 Dependencies are used through their public APIs, not copied into application source.
+
+The 0.5 external trainer workflow is interoperable with separately installed Cheat Engine and Apprentice. No trainer source or binary is included; their own license and distribution remain separate.
