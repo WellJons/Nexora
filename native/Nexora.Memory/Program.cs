@@ -38,6 +38,10 @@ internal sealed class Scanner : IDisposable
     private bool scanned, limited;
     private long readBytes;
     private int pid;
+    private sealed record Watch(long Address,string Name,string Kind,int Bits,bool Frozen,long Expires);
+    private readonly Dictionary<long,Watch> watches=new();
+    private string watchMessage="";
+    private long nextTick;
     private static readonly string[] BlockNames={"anticheat","anti-cheat","easyanticheat","battleye","beservice","vgc","vgk","start_protected_game","lsass","csrss","winlogon","services","svchost"};
     internal static bool Match(string image,string root,bool exact)
     {
@@ -117,6 +121,67 @@ internal sealed class Scanner : IDisposable
         Require();if(!scanned)throw new Exception("Perform the first scan.");
         int bits=Encode(kind,value);hits.RemoveAll(a=>!Read(a,out var b)||b!=bits);return Results();
     }
+    private long Selected(string address)
+    {
+        if(!long.TryParse(address,System.Globalization.NumberStyles.HexNumber,null,out var a)||!hits.Take(100).Contains(a))throw new Exception("Choose a displayed result first.");
+        return a;
+    }
+    private static double Decode(string type,int bits)=>type=="int32"?(double)bits:BitConverter.Int32BitsToSingle(bits);
+    private object[] WatchRows()
+    {
+        return watches.Values.Select(w=>{
+            bool ok=Read(w.Address,out var actual);
+            double v=ok?Decode(w.Kind,actual):double.NaN;
+            return (object)new{address=w.Address.ToString("X"),name=w.Name,kind=w.Kind,value=double.IsFinite(v)?(double?)v:null,available=ok,frozen=w.Frozen,target=Decode(w.Kind,w.Bits),remaining=w.Frozen?Math.Max(0,(w.Expires-Environment.TickCount64)/1000):0};
+        }).ToArray();
+    }
+    internal object Pin(string address,string name)
+    {
+        Require();var a=Selected(address);name=name.Trim();
+        if(name.Length<1||name.Length>70)throw new Exception("Enter a name (1–70 characters).");
+        if(watches.ContainsKey(a))throw new Exception("This address is already in the session.");
+        if(watches.Count>=12)throw new Exception("A session supports up to 12 saved values.");
+        if(!Read(a,out int bits)||!double.IsFinite(Decode(kind,bits)))throw new Exception("The value is unavailable.");
+        watches.Add(a,new Watch(a,name,kind,bits,false,0));watchMessage="";return Results();
+    }
+    private Watch GetWatch(string address)
+    {
+        Require();
+        if(!long.TryParse(address,System.Globalization.NumberStyles.HexNumber,null,out var a)||!watches.TryGetValue(a,out var w))throw new Exception("Unknown session value.");
+        return w;
+    }
+    private void WriteBits(long a,int bits)
+    {
+        if(!Read(a,out _))throw new Exception("The value is no longer accessible.");
+        var b=new byte[4];BinaryPrimitives.WriteInt32LittleEndian(b,bits);
+        if(!Win.WriteProcessMemory(handle,(nint)a,b,4,out var n)||n!=4||!Read(a,out var actual)||actual!=bits)throw new Exception("The game did not retain the value.");
+    }
+    internal object SetWatch(string address,double value,bool freeze)
+    {
+        var w=GetWatch(address);int bits=Encode(w.Kind,value);
+        WriteBits(w.Address,bits);watches[w.Address]=w with {Bits=bits,Frozen=freeze,Expires=freeze?Environment.TickCount64+300000:0};watchMessage="";return Results();
+    }
+    internal object StopWatch(string address)
+    {
+        var w=GetWatch(address);watches[w.Address]=w with{Frozen=false,Expires=0};return Results();
+    }
+    internal object RemoveWatch(string address)
+    {
+        var w=GetWatch(address);watches.Remove(w.Address);return Results();
+    }
+    internal object StopAll(){Require();foreach(var a in watches.Keys.ToArray())watches[a]=watches[a] with {Frozen=false,Expires=0};return Results();}
+    internal void Tick()
+    {
+        if(handle==0||watches.Count==0)return;
+        long now=Environment.TickCount64;if(now<nextTick)return;nextTick=now+400;
+        if(!Win.GetExitCodeProcess(handle,out var code)||code!=259){Dispose();return;}
+        foreach(var w in watches.Values.ToArray()){
+            if(!w.Frozen)continue;
+            if(now>=w.Expires){watches[w.Address]=w with {Frozen=false,Expires=0};watchMessage="Freeze expired. Enable it again if needed.";continue;}
+            try{if(!Read(w.Address,out var bits))throw new Exception();if(bits!=w.Bits)WriteBits(w.Address,w.Bits);}
+            catch{watches[w.Address]=w with {Frozen=false,Expires=0};watchMessage="A value became unavailable; its freeze stopped.";}
+        }
+    }
     internal object Results()
     {
         Require();var rows=new List<object>();
@@ -124,17 +189,17 @@ internal sealed class Scanner : IDisposable
             double v=kind=="int32"?(double)bits:BitConverter.Int32BitsToSingle(bits);
             rows.Add(new {address=a.ToString("X"),value=double.IsFinite(v)?(double?)v:null});
         }}
-        return new{pid,kind,total=hits.Count,limited,readBytes,rows,scanned};
+        return new{pid,kind,total=hits.Count,limited,readBytes,rows,scanned,watches=WatchRows(),watchMessage};
     }
     internal object Write(string address,double value)
     {
         Require();if(!long.TryParse(address,System.Globalization.NumberStyles.HexNumber,null,out var a)||!hits.Contains(a)||!hits.Take(100).Contains(a))throw new Exception("Choose an address from the displayed results.");
         int bits=Encode(kind,value);if(!Read(a,out _))throw new Exception("The value is no longer accessible.");
-        byte[] b=new byte[4];BinaryPrimitives.WriteInt32LittleEndian(b,bits);
-        if(!Win.WriteProcessMemory(handle,(nint)a,b,4,out var n)||n!=4||!Read(a,out var actual)||actual!=bits)throw new Exception("The game did not retain the value.");
+        if(watches.TryGetValue(a,out var w)&&w.Frozen)throw new Exception("Disable its freeze first.");
+        WriteBits(a,bits);
         return Results();
     }
-    public void Dispose(){if(handle!=0)Win.CloseHandle(handle);handle=0;pid=0;hits.Clear();scanned=false;limited=false;readBytes=0;}
+    public void Dispose(){if(handle!=0)Win.CloseHandle(handle);handle=0;pid=0;hits.Clear();watches.Clear();watchMessage="";scanned=false;limited=false;readBytes=0;}
 }
 
 internal static class Program
@@ -153,7 +218,13 @@ internal static class Program
             Console.WriteLine("Nexora native self-test passed.");return 0;
         }
         using var scanner=new Scanner();
-        while(Console.ReadLine() is string line){try{
+        while(true){
+            var input=Console.In.ReadLineAsync();
+            while(!input.Wait(400))scanner.Tick();
+            string? line=input.GetAwaiter().GetResult();
+            if(line==null)break;
+            scanner.Tick();
+            try{
             if(line.Length>32768)throw new Exception("Request too large.");
             using var doc=JsonDocument.Parse(line);var j=doc.RootElement;
             object? data=S(j,"op") switch {
@@ -163,6 +234,11 @@ internal static class Program
                 "refine"=>scanner.Refine(N(j,"value")),
                 "results"=>scanner.Results(),
                 "write"=>scanner.Write(S(j,"address"),N(j,"value")),
+                "pin"=>scanner.Pin(S(j,"address"),S(j,"name")),
+                "watch-set"=>scanner.SetWatch(S(j,"address"),N(j,"value"),j.GetProperty("freeze").GetBoolean()),
+                "watch-stop"=>scanner.StopWatch(S(j,"address")),
+                "watch-remove"=>scanner.RemoveWatch(S(j,"address")),
+                "stop-all"=>scanner.StopAll(),
                 "detach"=>Detach(scanner),
                 _=>throw new Exception("Unknown operation.")
             };

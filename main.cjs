@@ -85,6 +85,12 @@ safeHandler('memory:scan',(kind,value)=>{attached();if(!['int32','float32'].incl
 safeHandler('memory:refine',value=>{attached();return bridge.request('refine',{value:numeric(value)})});
 safeHandler('memory:results',()=>{attached();return bridge.request('results')});
 safeHandler('memory:write',(address,value)=>{attached();if(typeof address!=='string'||!/^[0-9A-F]{1,16}$/.test(address))throw Error('Неверный адрес');return bridge.request('write',{address,value:numeric(value)})});
+function addressOf(v){if(typeof v!=='string'||!/^[0-9A-F]{1,16}$/.test(v))throw Error('Неверный адрес');return v}
+safeHandler('memory:pin',(address,name)=>{attached();if(typeof name!=='string'||!name.trim()||name.length>70)throw Error('Введите название до 70 символов');return bridge.request('pin',{address:addressOf(address),name:name.trim()})});
+safeHandler('memory:watch-set',(address,value,freeze)=>{attached();if(typeof freeze!=='boolean')throw Error('Некорректная операция');return bridge.request('watch-set',{address:addressOf(address),value:numeric(value),freeze})});
+safeHandler('memory:watch-stop',address=>{attached();return bridge.request('watch-stop',{address:addressOf(address)})});
+safeHandler('memory:watch-remove',address=>{attached();return bridge.request('watch-remove',{address:addressOf(address)})});
+safeHandler('memory:stop-all',()=>{attached();return bridge.request('stop-all')});
 safeHandler('memory:detach',()=>{activeGame=null;bridge.close();return true});
 app.on('before-quit',()=>bridge.close());
 app.whenReady().then(()=>{load();session.defaultSession.setPermissionRequestHandler((_wc,_permission,cb)=>cb(false));win=new BrowserWindow({width:1280,height:850,minWidth:780,minHeight:620,backgroundColor:'#14151c',autoHideMenuBar:true,title:'Nexora',webPreferences:{preload:path.join(__dirname,'preload.cjs'),contextIsolation:true,nodeIntegration:false,sandbox:true}});win.webContents.setWindowOpenHandler(()=>({action:'deny'}));win.webContents.on('will-navigate',e=>e.preventDefault());win.loadFile('index.html')});
