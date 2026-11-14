@@ -4,7 +4,7 @@ $exe=Join-Path $root 'dist\Nexora-win32-x64\Nexora.exe'
 $before=@(Get-ChildItem -Path ([IO.Path]::GetTempPath()) -Directory -Filter 'nexora-ui-smoke-*' | ForEach-Object FullName)
 $env:NEXORA_UI_SMOKE='1'
 try {
- $p=Start-Process -FilePath $exe -ArgumentList @('--nexora-ui-smoke') -PassThru
+ $p=Start-Process -FilePath $exe -ArgumentList @('--nexora-ui-smoke') -WorkingDirectory $root -PassThru
  if(!$p.WaitForExit(90000)){$p.Kill();throw 'UI smoke timed out'}
  $dirs=@(Get-ChildItem -Path ([IO.Path]::GetTempPath()) -Directory -Filter 'nexora-ui-smoke-*' | Where-Object {$_.FullName -notin $before})
  if($dirs.Count -ne 1){throw 'Expected one isolated smoke profile'}

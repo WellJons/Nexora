@@ -14,9 +14,9 @@ PrivilegesRequired=lowest
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 MinVersion=10.0
-WizardStyle=modern dark
-WizardSizePercent=115,115
-WizardResizable=yes
+WizardStyle=modern dark hidebevels
+WizardSizePercent=125,115
+DisableStartupPrompt=yes
 WizardImageFile=..\dist\branding\wizard.png
 WizardSmallImageFile=..\dist\branding\small.png
 SetupIconFile=..\dist\branding\nexora.ico
@@ -33,6 +33,8 @@ VersionInfoVersion={#AppVersion}
 [Languages]
 Name: "russian"; MessagesFile: "compiler:Languages\Russian.isl"
 Name: "english"; MessagesFile: "compiler:Default.isl"
+[Messages]
+BeveledLabel=NEXORA / PLAY YOUR WAY
 [CustomMessages]
 russian.Desktop=Создать ярлык на рабочем столе
 english.Desktop=Create a desktop shortcut
@@ -44,6 +46,22 @@ russian.CleanupWarning=Не все служебные файлы удалось 
 english.CleanupWarning=Some application data could not safely be removed. Check %APPDATA%\Nexora; backups, locked files and unknown user files may remain.
 russian.BadFolder=Выберите отдельную пустую папку Nexora или папку предыдущей установки.
 english.BadFolder=Choose a separate empty Nexora folder or the previous installation folder.
+russian.IntroTitle=Твоё игровое пространство
+english.IntroTitle=Your gaming space
+russian.IntroDesc=Один центр для игр, модов и локальных инструментов.
+english.IntroDesc=One home for games, mods and local tools.
+russian.Feature1=01   Библиотека и инструменты
+english.Feature1=01   Library and tools
+russian.Feature2=02   Модификации и Save Vault
+english.Feature2=02   Mods and Save Vault
+russian.Feature3=03   Локальный перевод и мониторинг
+english.Feature3=03   Local translation and monitoring
+russian.Feature4=Языковые пакеты скачиваются на выбор после установки. Подписка и аккаунт не нужны.
+english.Feature4=Optional language packs are downloaded after installation. No subscription or account required.
+russian.RemoveTitle=Удаление Nexora
+english.RemoveTitle=Remove Nexora
+russian.RemoveDesc=Служебные файлы, модели и кэш удаляются. Игры и моды остаются.
+english.RemoveDesc=Application files, language packs and cache are removed. Games and mods stay.
 [Tasks]
 Name: "desktopicon"; Description: "{cm:Desktop}"; GroupDescription: "{cm:AdditionalIcons}"
 [Files]
@@ -55,6 +73,43 @@ Name: "{autodesktop}\Nexora"; Filename: "{app}\Nexora.exe"; WorkingDir: "{app}";
 [Run]
 Filename: "{app}\Nexora.exe"; Description: "{cm:Launch}"; Flags: nowait postinstall skipifsilent
 [Code]
+procedure InitializeWizard;
+var
+  Page: TWizardPage;
+  L: TNewStaticText;
+  I: Integer;
+  Titles: array[0..2] of String;
+begin
+  Page := CreateCustomPage(wpWelcome, CustomMessage('IntroTitle'), CustomMessage('IntroDesc'));
+  Titles[0] := CustomMessage('Feature1');
+  Titles[1] := CustomMessage('Feature2');
+  Titles[2] := CustomMessage('Feature3');
+  for I := 0 to 2 do
+  begin
+    L := TNewStaticText.Create(Page);
+    L.Parent := Page.Surface;
+    L.Left := ScaleX(10);
+    L.Top := ScaleY(12 + I * 37);
+    L.Font.Style := [fsBold];
+    L.Caption := Titles[I];
+  end;
+  L := TNewStaticText.Create(Page);
+  L.Parent := Page.Surface;
+  L.Left := ScaleX(10);
+  L.Top := ScaleY(132);
+  L.AutoSize := False;
+  L.Width := Page.SurfaceWidth - ScaleX(20);
+  L.WordWrap := True;
+  L.Caption := CustomMessage('Feature4');
+  L.AdjustHeight;
+end;
+
+procedure InitializeUninstallProgressForm;
+begin
+  UninstallProgressForm.PageNameLabel.Caption := CustomMessage('RemoveTitle');
+  UninstallProgressForm.PageDescriptionLabel.Caption := CustomMessage('RemoveDesc');
+end;
+
 function PrepareToInstall(var NeedsRestart: Boolean): String;
 var
   FindRec: TFindRec;

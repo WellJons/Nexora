@@ -24,7 +24,9 @@ function Text($g,$value,$size,$color,$x,$y,$style){
 $canvas=Canvas 384 720;$b=$canvas[0];$g=$canvas[1]
 $pen=[Drawing.Pen]::new((Color '#54436E'),1.4)
 for($i=0;$i -lt 11;$i++){$g.DrawLine($pen,0,330+$i*36,384,120+$i*36)}
-$pen.Dispose();Logo $g 46 65 125
+$pen.Dispose();$ring=[Drawing.Pen]::new((Color '#72558F'),2.0)
+for($i=0;$i -lt 4;$i++){$r=76+$i*22;$g.DrawEllipse($ring,192-$r,376-$r,$r*2,$r*2)}
+$ring.Dispose();Logo $g 46 65 125
 Text $g 'NEXORA' 45 '#F5F0FF' 40 208 ([Drawing.FontStyle]::Bold)
 Text $g 'PLAY YOUR WAY' 20 '#C1A9EE' 44 270 ([Drawing.FontStyle]::Regular)
 Text $g 'GAMES  /  MODS' 20 '#D6C5F7' 44 571 ([Drawing.FontStyle]::Bold)

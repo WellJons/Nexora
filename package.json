@@ -1,14 +1,14 @@
 {
   "name": "nexora",
   "productName": "Nexora",
-  "version": "0.21.0",
+  "version": "0.22.0",
   "private": true,
   "description": "Personal single-player game companion",
   "main": "main.cjs",
   "scripts": {
     "start": "electron .",
     "test": "node --test",
-    "check": "node --check main.cjs && node --check preload.cjs && node --check renderer.js && node --check mods.cjs && node --check core.cjs && node --check manager.cjs && node --check performance.cjs && node --check library.cjs && node --check scripts/package.cjs && node --check save-vault.cjs && node --check memory-bridge.cjs && node --check overlay.cjs && node --check overlay-preload.cjs && node --check overlay.js && node --check gog.cjs && node --check mod-plan.cjs && node --check thunder.cjs && node --check guides.js && node --check translator.cjs && node --check translation-window.cjs && node --check translation-preload.cjs && node --check translation-ui.js && node --check local-model.cjs && node --check local-model-worker.cjs && node --check scratch.cjs && node --check game-session.cjs && node --check updates.cjs && node --check ui-smoke.cjs && node --check trainer-profiles.cjs",
+    "check": "node --check main.cjs && node --check preload.cjs && node --check renderer.js && node --check mods.cjs && node --check core.cjs && node --check manager.cjs && node --check performance.cjs && node --check library.cjs && node --check scripts/package.cjs && node --check save-vault.cjs && node --check memory-bridge.cjs && node --check overlay.cjs && node --check overlay-preload.cjs && node --check overlay.js && node --check gog.cjs && node --check mod-plan.cjs && node --check thunder.cjs && node --check guides.js && node --check translator.cjs && node --check translation-window.cjs && node --check translation-preload.cjs && node --check translation-ui.js && node --check local-model.cjs && node --check local-model-worker.cjs && node --check scratch.cjs && node --check game-session.cjs && node --check updates.cjs && node --check ui-smoke.cjs && node --check trainer-profiles.cjs && node --check design.js",
     "package:win": "node scripts/package.cjs",
     "trainer:build": "dotnet publish native/Nexora.Memory/Nexora.Memory.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:DebugType=None -o native-bin",
     "installer:win": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File scripts/installer.ps1"

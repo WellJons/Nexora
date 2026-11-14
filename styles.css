@@ -35,3 +35,39 @@
 .release-notes{max-height:180px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;font-size:12px;padding:12px;background:#171722;border-radius:8px}.localmodel .profilequick{margin:0;flex-wrap:wrap}
 
 .recipepanel{margin:16px 0;padding:20px;border:1px solid #504467;border-radius:14px;background:linear-gradient(145deg,#2c263b,#1b1c24 70%)}.recipepanel h2{margin:4px 0 10px}.recipefields{display:grid;grid-template-columns:2fr 1fr 1fr;gap:10px;margin:12px 0}.recipefields label{display:flex;flex-direction:column;gap:6px;min-width:0}.recipefields small{color:var(--muted)}.recipefields .modinput{width:100%}.recipe-notes{grid-column:1/-1}.recipefields textarea{resize:vertical}.recipeitem{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 0 6px;margin-top:12px;border-top:1px solid #493d5e}.recipeitem strong,.recipeitem small{display:block}.recipeitem p{font-size:12px;overflow-wrap:anywhere}.recipeitem small{color:#bda7f2}.recipeitem .toolbar{flex-wrap:wrap;justify-content:flex-end}@media(max-width:850px){.recipefields{grid-template-columns:1fr 1fr}.recipefields label:first-child{grid-column:1/-1}.recipeitem{flex-direction:column;align-items:flex-start}}
+
+/* Nexora visual system — Midnight Violet 2.0 */
+:root{--bg:#101117;--panel:#191a24;--text:#f3f2fa;--muted:#a3a3b8;--line:#2b2a39;--accent:#ae91ff;--ease:cubic-bezier(.2,.75,.2,1);--titlebar:36px}
+body{padding-top:var(--titlebar);background:radial-gradient(ellipse at 80% 0%,#211a3080,transparent 45%),var(--bg);font-size:14px}
+.titlebar{height:var(--titlebar);position:fixed;inset:0 0 auto;z-index:30;background:#15141e;border-bottom:1px solid #292632;display:flex;align-items:center;gap:12px;padding:0 156px 0 18px;-webkit-app-region:drag;user-select:none;font-size:11px;color:#aaa5bc}
+.titlebrand{font-size:10px;font-weight:800;letter-spacing:2px;color:#c6aaff}.title-divider{width:1px;height:13px;background:#3b324d}.title-tag{margin-left:auto;letter-spacing:1.7px;color:#767084;font-size:9px;white-space:nowrap}#title-location{overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.sidebar{top:var(--titlebar);height:calc(100vh - var(--titlebar));width:230px;background:linear-gradient(150deg,#1b1825,#14151d 50%);padding:20px 14px 16px;border-right:1px solid #2b2736;overflow:hidden}
+.brand{padding:0 11px 22px;flex-shrink:0}.brand svg{width:34px}.sidebar nav{display:flex;flex-direction:column;gap:13px;min-height:0;overflow-y:auto;overflow-x:hidden;scrollbar-width:thin;scrollbar-color:#484052 transparent;padding:0 2px 2px}
+.navgroup{display:grid;gap:3px}.navgroup-title{padding:5px 12px 4px;color:#837d96;font-weight:700;font-size:9px;letter-spacing:1.5px;white-space:nowrap}
+.sidebar nav button{position:relative;display:flex;gap:11px;align-items:center;border:1px solid transparent;border-radius:9px;min-height:35px;padding:8px 11px;font-weight:500;font-size:13px;color:#a8a4b9;transition:background 150ms var(--ease),color 150ms var(--ease),border-color 150ms var(--ease)}
+.sidebar nav button svg{width:19px;height:19px;flex:none;color:#9188a9;transition:color 150ms var(--ease),transform 150ms var(--ease)}
+.sidebar nav button .navtext{width:auto;font-size:inherit;line-height:1.2;white-space:nowrap}
+.sidebar nav button:hover{background:#242331;color:#fff}.sidebar nav button:hover svg{color:#d1beff;transform:translateX(1px)}
+.sidebar nav button.active{background:linear-gradient(100deg,#4933638c,#292438);border-color:#7953a550;color:#efe7ff}
+.sidebar nav button.active svg{color:#c5a7ff}.sidebar nav button.active:before{position:absolute;content:'';width:3px;height:20px;background:#b89bff;border-radius:0 3px 3px 0;left:0}
+.sidebottom{margin-top:auto;padding-top:15px}.dot{flex-shrink:0}
+main{margin:0 auto;padding:23px 32px 0}main>header{position:sticky;top:var(--titlebar);background:#101117f5;z-index:8;padding:11px 0 13px;margin-top:-11px;margin-bottom:18px}
+.search,.modinput{background:#171821;border-color:#383347;transition:border-color .16s var(--ease),box-shadow .16s var(--ease)}
+.search:focus-within,.modinput:focus-visible{border-color:#a88cf1;box-shadow:0 0 0 3px #a88cf11a;outline:none}
+button{transition:background .15s var(--ease),transform .18s var(--ease),border-color .15s var(--ease),box-shadow .18s var(--ease),color .15s var(--ease)}
+.primary{background:linear-gradient(110deg,#7650d5,#9a6de8);border-color:#a17ce9;box-shadow:0 4px 16px #8052d32a;border-radius:10px}
+.primary:hover:not(:disabled){background:linear-gradient(110deg,#8c61ed,#ac7ef9);box-shadow:0 5px 22px #9464f44d;transform:translateY(-1px)}
+.secondary{background:#22212d;border-color:#3a3549;border-radius:10px}.secondary:hover:not(:disabled){background:#30283f;border-color:#72608f}
+button:not(:disabled):active{transform:scale(.98)}
+.game,.modcard,.guidecard,.quicktile,.translateprofile,.sourcecard{transition:transform .2s var(--ease),border-color .18s var(--ease),box-shadow .2s var(--ease),background .18s var(--ease)}
+.game:hover,.modcard:hover,.guidecard:hover,.quicktile:hover{box-shadow:0 7px 20px #0004;transform:translateY(-3px)}
+.cover img{transition:transform .35s var(--ease);will-change:auto}.game:hover .cover img{transform:scale(1.045)}.game.selected{border-color:#b18cf9;box-shadow:0 0 0 1px #b18cf93b}
+.gamehero{border-radius:18px;overflow:hidden;box-shadow:0 12px 32px #0003}.heroart{transition:transform .45s var(--ease)}.gamehero:hover .heroart{transform:scale(1.018)}
+.quicktile{border-radius:13px}.modhero,.detail,.recipepanel,.playlive,.localmodel,.translationstatus,.hudpanel,.setting{border-radius:15px}
+.motion-setting{display:flex;align-items:center;justify-content:space-between;gap:16px}.motion-toggle{border:1px solid #4d445f;background:#25232f;border-radius:18px;padding:8px 14px;font-size:12px;white-space:nowrap}.motion-toggle.on{background:#473260;border-color:#8c69d0;color:#f1e6ff}
+:focus-visible{outline:2px solid #be9aff;outline-offset:3px}
+@media(max-width:1000px){.sidebar{width:195px;padding:18px 11px}.navgroup-title{font-size:8px}.brand{padding-bottom:19px}main{padding:20px 22px 0}}
+@media(max-width:800px){.sidebar{width:62px;padding:16px 7px}.brand{padding:0 6px 18px}.brand svg{width:29px}.navgroup-title,.sidebar nav button .navtext{display:none}.sidebar nav{gap:9px}.sidebar nav button{justify-content:center;min-height:37px;padding:8px 0}.sidebar nav button svg{width:20px;height:20px}.title-tag{display:none}main{padding:18px 15px 0}}
+@media(max-height:760px){.sidebar nav{gap:7px}.navgroup-title{padding-top:3px}.sidebar nav button{padding-top:6px;padding-bottom:6px;min-height:31px}}
+.reduce-motion *,.reduce-motion *::before,.reduce-motion *::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
