@@ -5,6 +5,8 @@ const {randomUUID}=require('node:crypto');
 const {discoverSteam,mergeGames}=require('./core.cjs');
 const mods=require('./mods.cjs');
 const manager=require('./manager.cjs');
+const modPlan=require('./mod-plan.cjs');
+let pendingModPlan=null;
 const {makeMonitor}=require('./performance.cjs');
 const monitor=makeMonitor(require('systeminformation'));
 const {createOverlay}=require('./overlay.cjs');
@@ -52,6 +54,15 @@ safeHandler('mods:download',async(project,version,name)=>{
  state.downloads.unshift({id:randomUUID(),name:path.basename(r.filePath),path:r.filePath,provider:'Modrinth',project,version,date:new Date().toISOString(),...result});
  state.downloads=state.downloads.slice(0,100);persist();return refresh();
 });
+safeHandler('mods:plan',async request=>{pendingModPlan=null;const plan=await modPlan.resolvePlan(mods,request);const token=randomUUID();pendingModPlan={token,plan,expires:Date.now()+600000};return {token,...modPlan.preview(plan)}});
+safeHandler('mods:install-plan',token=>exclusive(async()=>{
+ if(!pendingModPlan||pendingModPlan.token!==token||Date.now()>pendingModPlan.expires)throw Error('План устарел; сформируйте его заново');
+ const {plan}=pendingModPlan;pendingModPlan=null;
+ const r=await dialog.showOpenDialog(win,{title:'Выберите папку mods правильного профиля Minecraft',properties:['openDirectory']});if(r.canceled)return null;
+ const confirm=await dialog.showMessageBox(win,{type:'warning',title:'Установка модов',message:'Установить '+plan.items.length+' файлов?',detail:'Minecraft '+plan.game+' · '+plan.loader+'\n'+plan.items.map(x=>x.file.filename).join('\n')+'\nЗакройте игру. Проверьте версию профиля и доверяйте источнику. Существующие файлы не перезаписываются.',buttons:['Отмена','Установить'],defaultId:0,cancelId:0});if(confirm.response!==1)return null;
+ const added=await modPlan.installPlan(mods,plan,r.filePaths[0],state.installedMods);state.installedMods.unshift(...added.map(x=>({...x,id:randomUUID(),date:new Date().toISOString()})));persist();return refresh(false);
+}));
+safeHandler('manager:check-update',async(id,game,loader)=>{const m=state.installedMods.find(x=>x.id===id);if(!m)throw Error('Мод не найден');return modPlan.checkUpdate(mods,m,game,loader)});
 safeHandler('mods:show',id=>{const d=state.downloads.find(v=>v.id===id);if(!d)throw Error('Загрузка не найдена');shell.showItemInFolder(d.path);return true});
 safeHandler('manager:list',async()=>Promise.all(state.installedMods.map(async m=>({...m,status:await manager.status(m)}))));
 safeHandler('manager:install',id=>exclusive(async()=>{

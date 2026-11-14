@@ -3,7 +3,7 @@ const {createHash}=require('node:crypto');
 const {Readable,Transform}=require('node:stream');
 const {pipeline}=require('node:stream/promises');
 const API='https://api.modrinth.com/v2', MAX=256*1024*1024;
-const agent='WellJons/Nexora/0.2.0 (https://github.com/WellJons/Nexora)';
+const agent='WellJons/Nexora/0.10.0 (https://github.com/WellJons/Nexora)';
 function id(s){if(typeof s!=='string'||!/^[a-zA-Z0-9]{8}$/.test(s))throw Error('Неверный идентификатор Modrinth');return s}
 function filters(q='',game='',loader=''){
  if([q,game,loader].some(v=>typeof v!=='string'||v.length>100))throw Error('Неверный фильтр');
@@ -32,4 +32,6 @@ async function download(f,destination,fetcher=fetch){
  return {size,sha512:f.hashes.sha512};
  }finally{await fs.promises.rm(temp,{recursive:true,force:true})}
 }
-module.exports={filters,validFile,search,versions,resolveFile,download};
+async function getVersion(version){return json('/version/'+id(version))}
+async function getVersions(project,game,loader){filters('',game,loader);const qs=new URLSearchParams({game_versions:JSON.stringify([game]),loaders:JSON.stringify([loader])});return json('/project/'+id(project)+'/version?'+qs)}
+module.exports={filters,validFile,search,versions,resolveFile,download,getVersion,getVersions};
