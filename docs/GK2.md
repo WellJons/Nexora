@@ -1,0 +1,3 @@
+Nexora GK2 save adapter
+
+Wire token grammar and resource mapping adapted from NetroScript/graveyard-keeper-2-savegame-editor, MIT, commit 9e5ce225dd00b45029ca16039e68d5051ebf41c5, crates/save-core/src/wire.rs and general.rs. Original implementation is Rust; Nexora uses a restricted JS offset-preserving reader, edits existing numeric fields only and exports a new copy. No upstream assets, game code, scripts, item databases or binaries are bundled. License: docs/licenses/NetroScript-GK2-MIT.txt. Upstream: https://github.com/NetroScript/graveyard-keeper-2-savegame-editor. No actual GK2 save tested; synthetic fixture only. Game closed, backup first, copied .info is unchanged; verify copy in game before replacing a slot. No live trainer or new item creation.

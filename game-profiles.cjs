@@ -1,7 +1,7 @@
 const fs=require('node:fs'),path=require('node:path');
 const bundled=require('./data/game-profiles.json');
 const CATEGORIES=Object.freeze({currency:'Валюта',tools:'Инструменты',materials:'Материалы',gems:'Драгоценности',health:'Еда и лечение',ammo:'Боеприпасы',blocks:'Блоки',weapons:'Оружие',armor:'Экипировка',other:'Прочее'});
-const ENGINES=new Set(['bethesda-skyrim','bethesda-fallout4','minecraft','manual']);
+const ENGINES=new Set(['bethesda-skyrim','bethesda-fallout4','minecraft','manual','gk2-save']);
 const MAX=16*1024*1024;
 function text(v,n){if(typeof v!=='string'||!v.trim()||v.length>n||/[\x00-\x1f\x7f]/.test(v))throw Error('Invalid profile text');return v}
 function key(v){if(typeof v!=='string'||!/^[a-z0-9][a-z0-9_-]{0,63}$/.test(v))throw Error('Invalid identifier');return v}

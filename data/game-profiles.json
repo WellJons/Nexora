@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "revision": 1,
+  "revision": 2,
   "games": [
     {
       "id": "skyrim",
@@ -554,6 +554,21 @@
           "category": "tools"
         }
       ]
+    },
+    {
+      "id": "graveyard-keeper-2",
+      "name": "Graveyard Keeper 2",
+      "shortName": "Graveyard Keeper 2",
+      "steamIds": [
+        "4358690"
+      ],
+      "aliases": [
+        "graveyard keeper 2"
+      ],
+      "engine": "gk2-save",
+      "hint": "Встроенный редактор ресурсов в копии сохранения. Закрой игру перед выбором файла. Совместимость с реальным сохранением ещё не проверена.",
+      "commands": [],
+      "items": []
     }
   ]
 }
