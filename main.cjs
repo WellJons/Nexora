@@ -3,7 +3,8 @@ const fs=require('node:fs'),path=require('node:path');
 const {execFileSync,spawn}=require('node:child_process');
 const {randomUUID}=require('node:crypto');
 const {configureScratch}=require('./scratch.cjs');
-const profileRoot=path.join(app.getPath('appData'),'Nexora');
+const smokeMode=process.argv.includes('--nexora-ui-smoke')&&process.env.NEXORA_UI_SMOKE==='1';
+const profileRoot=smokeMode?fs.mkdtempSync(path.join(require('node:os').tmpdir(),'nexora-ui-smoke-')):path.join(app.getPath('appData'),'Nexora');
 fs.mkdirSync(profileRoot,{recursive:true});
 app.setPath('userData',profileRoot);
 if(!app.requestSingleInstanceLock()){app.quit();process.exit(0)}
@@ -19,6 +20,7 @@ const monitor=makeMonitor(require('systeminformation'));
 const {createOverlay}=require('./overlay.cjs');
 let overlay,translation,localModel;
 const {createLocalModel,packFiles}=require('./local-model.cjs');
+const updates=require('./updates.cjs').createUpdates(app.getVersion());
 const {createTranslation}=require('./translation-window.cjs');
 const {settings:translationSettings}=require('./translator.cjs');
 const {discoverEpic,epicUri,normalizeProfile,recordLaunch,contained}=require('./library.cjs');
@@ -150,16 +152,20 @@ safeHandler('translation:state',()=>translation.state());
 safeHandler('translation:model-state',()=>localModel.state());
 safeHandler('translation:model-install',async(pack='q8')=>{packFiles(pack);if(translation.state().running)throw Error('Остановите перевод перед установкой');const answer=await dialog.showMessageBox(win,{type:'question',title:'Локальный языковой пакет',message:'Скачать модель английский → русский?',detail:(pack==='m2m'?'Около 650 МБ, M2M100. ':pack==='fp32'?'Около 450 МБ, полные веса. ':'Около 250 МБ, квантованные веса. ')+'Загрузка выполняется один раз. Текст игры не отправляется. После скачивания перевод работает без API-ключей и интернета.',buttons:['Отмена','Скачать'],defaultId:0,cancelId:0});return answer.response===1?localModel.install(pack):localModel.state()});
 safeHandler('translation:model-cancel',()=>localModel.cancel());
+safeHandler('translation:model-remove',async pack=>{packFiles(pack);if(translation.state().running)throw Error('Остановите перевод');const answer=await dialog.showMessageBox(win,{type:'question',title:'Удаление языкового пакета',message:'Удалить выбранный пакет?',detail:'Удаляются только известные файлы выбранной модели. Другие модели, моды и сохранения остаются. Пакет можно скачать заново.',buttons:['Отмена','Удалить'],defaultId:0,cancelId:0});if(answer.response!==1)return localModel.state();if(translation.state().running)throw Error('Остановите перевод');return localModel.remove(pack,[...state.downloads.map(x=>x.path),...state.installedMods.map(x=>x.folder),...state.manual.map(x=>x.path),...state.backups.map(x=>x.source),...state.backups.map(x=>x.path)])});
+safeHandler('updates:check',()=>updates.check());
+safeHandler('updates:open',()=>shell.openExternal(updates.page()));
+
 safeHandler('translation:start',async value=>{
  const config=translationSettings(value);
  const detail=['ocr','local'].includes(config.provider)?'Распознавание и выбранная локальная обработка выполняются без отправки текста или изображений.':'Распознанный английский текст выбранного окна или области будет передаваться сервису '+(config.provider==='deepl'?'DeepL':'MyMemory')+'. Изображения не отправляются. Не оставляйте в области личные данные; сервис имеет собственные правила и лимиты. В режиме окна захват приостанавливается при переключении; в режиме области следит за экраном. Не захватывайте личные данные.';
  const c=await dialog.showMessageBox(win,{type:'question',title:'Экранный перевод',message:config.mode==='window'?'Начать перевод выбранного игрового окна?':'Начать захват выбранной области экрана?',detail:detail+(config.provider==='local'&&config.mode==='window'?'\nСессия работает до остановки или закрытия игрового окна.':'\nСессия ограничена 30 минутами.')+' Остановить можно из Nexora.',buttons:['Отмена','Начать'],defaultId:0,cancelId:0});
- if(c.response!==1)return null;return translation.start(config);
+ if(c.response!==1)return null;if(localModel.state().removing||localModel.state().installing)throw Error('Дождитесь завершения операции с моделью');return translation.start(config);
 });
 safeHandler('translation:stop',()=>translation.stop());
 let quitting=false;
 app.on('before-quit',e=>{if(!quitting&&tracker?.state().active){e.preventDefault();quitting=true;const deadline=setTimeout(()=>app.quit(),6000);tracker.shutdown().catch(()=>{}).finally(()=>{clearTimeout(deadline);app.quit()});return}bridge.close();pluginBridge.close();overlay?.close();translation?.stop();localModel?.cancel();localModel?.close()});
 
 app.on('second-instance',()=>{if(win&&!win.isDestroyed()){if(win.isMinimized())win.restore();win.show();win.focus()}});
-app.whenReady().then(()=>{configureScratch(app.getPath('userData'));load();tracker=createTracker({bridge:playBridge,monitor,getHistory:()=>state.playSessions,saveHistory:rows=>{state.playSessions=rows;persist()},send:value=>{if(win&&!win.isDestroyed())win.webContents.send('play:changed',value)}});session.defaultSession.setPermissionRequestHandler((_wc,_permission,cb)=>cb(false));win=new BrowserWindow({width:1280,height:850,minWidth:780,minHeight:620,backgroundColor:'#14151c',autoHideMenuBar:true,title:'Nexora',webPreferences:{preload:path.join(__dirname,'preload.cjs'),contextIsolation:true,nodeIntegration:false,sandbox:true}});win.webContents.setWindowOpenHandler(()=>({action:'deny'}));win.webContents.on('will-navigate',e=>e.preventDefault());overlay=createOverlay({BrowserWindow,screen,globalShortcut,ipcMain,monitor,dir:__dirname,onChange:value=>{if(win&&!win.isDestroyed())win.webContents.send('hud:changed',value)}});localModel=createLocalModel(path.join(app.getPath('userData'),'translation-models'),value=>{if(win&&!win.isDestroyed())win.webContents.send('translation:model-changed',value)});translation=createTranslation({localModel,BrowserWindow,screen,desktopCapturer,globalShortcut,ipcMain,main:win,dir:__dirname,onChange:value=>{if(win&&!win.isDestroyed())win.webContents.send('translation:changed',value)}});win.on('closed',()=>{overlay.close();translation.stop();app.quit()});win.loadFile('index.html')});
+app.whenReady().then(()=>{configureScratch(app.getPath('userData'));load();tracker=createTracker({bridge:playBridge,monitor,getHistory:()=>state.playSessions,saveHistory:rows=>{state.playSessions=rows;persist()},send:value=>{if(win&&!win.isDestroyed())win.webContents.send('play:changed',value)}});session.defaultSession.setPermissionRequestHandler((_wc,_permission,cb)=>cb(false));win=new BrowserWindow({width:1280,height:850,minWidth:780,minHeight:620,backgroundColor:'#14151c',autoHideMenuBar:true,title:'Nexora',webPreferences:{preload:path.join(__dirname,'preload.cjs'),contextIsolation:true,nodeIntegration:false,sandbox:true}});win.webContents.setWindowOpenHandler(()=>({action:'deny'}));win.webContents.on('will-navigate',e=>e.preventDefault());overlay=createOverlay({BrowserWindow,screen,globalShortcut,ipcMain,monitor,dir:__dirname,onChange:value=>{if(win&&!win.isDestroyed())win.webContents.send('hud:changed',value)}});localModel=createLocalModel(path.join(app.getPath('userData'),'translation-models'),value=>{if(win&&!win.isDestroyed())win.webContents.send('translation:model-changed',value)});translation=createTranslation({localModel,BrowserWindow,screen,desktopCapturer,globalShortcut,ipcMain,main:win,dir:__dirname,onChange:value=>{if(win&&!win.isDestroyed())win.webContents.send('translation:changed',value)}});win.on('closed',()=>{overlay.close();translation.stop();app.quit()});if(smokeMode)require('./ui-smoke.cjs').runSmoke(win,app,profileRoot);win.loadFile('index.html')});
 app.on('window-all-closed',()=>app.quit());

@@ -47,13 +47,13 @@ function createEngine(folder,profileId='balanced'){
  return {translate:(text,signal)=>request('translate',text,signal),close};
 }
 function createLocalModel(root,onChange=()=>{}){
- const folder=pack=>path.join(root,'en-ru-'+pack+'-'+packSource(pack).revision.slice(0,7));let controller=null,engine=null,operation=null,engineProfile=null;
+ const folder=pack=>path.join(root,'en-ru-'+pack+'-'+packSource(pack).revision.slice(0,7));let controller=null,engine=null,operation=null,engineProfile=null,removing=false;
  let status={installing:false,downloaded:0,file:'',error:'',pack:null};
- function state(){return {...status,ready:ready(folder('q8')),packs:{q8:ready(folder('q8'),'q8'),fp32:ready(folder('fp32'),'fp32'),m2m:ready(folder('m2m'),'m2m')}}}
+ function state(){const packs={},present={};for(const pack of ['q8','fp32','m2m']){packs[pack]=ready(folder(pack),pack);try{fs.lstatSync(folder(pack));present[pack]=true}catch{present[pack]=false}}return {...status,removing,ready:packs.q8,packs,present}}
  function publish(patch){status={...status,...patch};const v=state();onChange(v);return v}
- async function install(pack='q8'){const entries=packFiles(pack),target=folder(pack);if(operation)throw Error('Установка уже выполняется');if(ready(target,pack))return publish({error:''});
+ async function install(pack='q8'){const entries=packFiles(pack),target=folder(pack);if(operation||removing)throw Error('Дождитесь завершения операции с моделью');if(ready(target,pack))return publish({error:''});
   controller=new AbortController();const signal=controller.signal;publish({installing:true,downloaded:0,file:'',error:'',pack});
-  operation=(async()=>{await fs.promises.mkdir(root,{recursive:true});const stage=await fs.promises.mkdtemp(path.join(root,'download-'));let completed=0,lastProgress=0;const manifest=[];let probe=null;
+  operation=(async()=>{await fs.promises.mkdir(root,{recursive:true});const stat=await fs.promises.lstat(root);if(!stat.isDirectory()||stat.isSymbolicLink())throw Error('Недопустимая папка моделей');const stage=await fs.promises.mkdtemp(path.join(root,'download-'));let completed=0,lastProgress=0;const manifest=[];let probe=null;
    try{for(const entry of entries){publish({file:entry[0]});const row=await downloadFile(entry,stage,signal,n=>{const now=Date.now();if(now-lastProgress>=300){lastProgress=now;publish({downloaded:completed+n})}},fetch,pack);completed+=row.size;publish({downloaded:completed});manifest.push(row)}
     publish({file:'Проверка локального перевода'});probe=createEngine(stage,pack==='m2m'?'advanced':pack==='fp32'?'quality':'lite');const text=await probe.translate('Hello world.',signal);if(!/[а-яё]/i.test(text))throw Error('Тест локального перевода не пройден');await probe.close();probe=null;
     await fs.promises.writeFile(path.join(stage,'installed.json'),JSON.stringify({revision:packSource(pack).revision,pack,files:manifest}));
@@ -63,8 +63,23 @@ function createLocalModel(root,onChange=()=>{}){
   })();try{await operation}catch(e){publish({error:signal.aborted?'Загрузка отменена':String(e.message||e).slice(0,250)})}finally{operation=null;controller=null;publish({installing:false})}return state()
  }
  function cancel(){controller?.abort();return state()}
- async function translate(text,signal,profileId='balanced'){const p=profile(profileId);if(!ready(folder(p.pack),p.pack))throw Error('Сначала скачайте выбранный языковой пакет');if(operation)throw Error('Языковой пакет ещё устанавливается');if(engine&&engineProfile!==profileId)await close();if(!engine){engine=createEngine(folder(p.pack),profileId);engineProfile=profileId}return engine.translate(text,signal)}
+ async function translate(text,signal,profileId='balanced'){const p=profile(profileId);if(!ready(folder(p.pack),p.pack))throw Error('Сначала скачайте выбранный языковой пакет');if(operation||removing)throw Error('Языковой пакет занят');if(engine&&engineProfile!==profileId)await close();if(!engine){engine=createEngine(folder(p.pack),profileId);engineProfile=profileId}return engine.translate(text,signal)}
  function close(){const e=engine;engine=null;engineProfile=null;return e?.close()||Promise.resolve()}
- return {state,install,cancel,translate,close,isReady:id=>ready(folder(profile(id).pack),profile(id).pack)};
+ async function remove(pack,protectedPaths=[]){
+  const entries=packFiles(pack),target=folder(pack);if(operation||removing)throw Error('Дождитесь завершения операции с моделью');removing=true;publish({error:'',pack});
+  try{
+   await close();const rootStat=await fs.promises.lstat(root);if(!rootStat.isDirectory()||rootStat.isSymbolicLink())throw Error('Недопустимая папка моделей');
+   const stat=await fs.promises.lstat(target);if(!stat.isDirectory()||stat.isSymbolicLink())throw Error('Недопустимая папка пакета');
+   if(path.resolve(await fs.promises.realpath(target)).toLowerCase()!==path.resolve(target).toLowerCase())throw Error('Путь пакета перенаправлен');
+   const paths=protectedPaths.filter(x=>typeof x==='string'&&path.isAbsolute(x)).map(x=>path.resolve(x).toLowerCase());
+   const inside=(a,b)=>a===b||b.startsWith(a+path.sep);
+   const targetKey=path.resolve(target).toLowerCase();if(paths.some(p=>inside(p,targetKey)||inside(targetKey,p)))throw Error('В пакете обнаружен пользовательский путь. Переместите свои файлы перед удалением.');
+   const onnx=path.join(target,'onnx');try{const s=await fs.promises.lstat(onnx);if(!s.isDirectory()||s.isSymbolicLink())throw Error('Папка ONNX перенаправлена')}catch(e){if(e.code!=='ENOENT')throw e}
+   for(const [name] of [...entries,['installed.json']]){const p=path.join(target,name);try{const s=await fs.promises.lstat(p);if(!s.isFile()||s.isSymbolicLink())throw Error('Неизвестный объект в пакете: '+name);await fs.promises.unlink(p)}catch(e){if(e.code!=='ENOENT')throw e}}
+   for(const dir of [onnx,target])try{await fs.promises.rmdir(dir)}catch(e){if(!['ENOENT','ENOTEMPTY','EEXIST'].includes(e.code))throw e}
+   publish({file:'Пакет удалён',downloaded:0});
+  }catch(e){publish({error:String(e.message||e).slice(0,250)});throw e}finally{removing=false;publish({})}return state()
+ }
+ return {state,install,cancel,translate,close,remove,isReady:id=>ready(folder(profile(id).pack),profile(id).pack)};
 }
 module.exports={MODEL,REV,FILES,FULL_FILES,M2M_FILES,PROFILES,profile,packFiles,packSource,downloadFile,trusted,ready,createEngine,createLocalModel};

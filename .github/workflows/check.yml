@@ -42,6 +42,9 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Local model runtime failed' }
           & ./dist/Nexora-win32-x64/resources/app/native-bin/Nexora.Memory.exe --self-test
           if ($LASTEXITCODE -ne 0) { throw 'Native self-test failed' }
+      - name: Verify graphical application startup and navigation
+        shell: pwsh
+        run: ./scripts/ui-smoke.ps1
       - name: Install Inno Setup compiler
         shell: pwsh
         run: |
