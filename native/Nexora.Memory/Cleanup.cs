@@ -6,7 +6,7 @@ internal static class Cleanup
 {
     private static readonly string[] Owned = {
         "translation-models","scratch","updates","trainer-packages","Cache","Code Cache","GPUCache","DawnCache","DawnGraphiteCache","DawnWebGPUCache","Dictionaries","Network","Local Storage","Session Storage","IndexedDB","blob_storage","Crashpad","logs","WebStorage","SharedStorage","Service Worker","File System","databases","Partitions","VideoDecodeStats",
-        "Preferences","Local State","SingletonLock","SingletonCookie","SingletonSocket","DevToolsActivePort","Cookies","Cookies-journal","TransportSecurity","Visited Links","Trust Tokens","Trust Tokens-journal","DIPS","DIPS-wal","DIPS-shm","SharedStorage-wal","SharedStorage-shm","library.json.tmp","game-profiles-cache.json","trainer-source-index.json","trainer-source-index.json.tmp","LOCK","LOG","LOG.old"
+        "Preferences","Local State","SingletonLock","SingletonCookie","SingletonSocket","DevToolsActivePort","Cookies","Cookies-journal","TransportSecurity","Visited Links","Trust Tokens","Trust Tokens-journal","DIPS","DIPS-wal","DIPS-shm","SharedStorage-wal","SharedStorage-shm","library.json.tmp","game-profiles-cache.json","trainer-source-index.json","trainer-source-index.json.tmp","trainer-source-index-v2.json","trainer-source-index-v2.json.tmp","LOCK","LOG","LOG.old"
     };
     private static bool Reparse(string file) => (File.GetAttributes(file)&FileAttributes.ReparsePoint)!=0;
     private static bool Exists(string file) {try{File.GetAttributes(file);return true;}catch(FileNotFoundException){return false;}catch(DirectoryNotFoundException){return false;}}
