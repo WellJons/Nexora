@@ -1,0 +1,559 @@
+{
+  "schema": 1,
+  "revision": 1,
+  "games": [
+    {
+      "id": "skyrim",
+      "name": "The Elder Scrolls V: Skyrim / Special Edition",
+      "shortName": "Skyrim",
+      "steamIds": [
+        "489830",
+        "72850"
+      ],
+      "aliases": [
+        "skyrim"
+      ],
+      "engine": "bethesda-skyrim",
+      "hint": "Открой пустую игровую консоль (~), раскладка ENG US. Проверь команду перед выполнением.",
+      "commands": [
+        {
+          "id": "gold",
+          "name": "Добавить 10 000 золота",
+          "command": "player.additem 0000000f 10000"
+        },
+        {
+          "id": "god",
+          "name": "Режим бога (переключатель)",
+          "command": "tgm"
+        },
+        {
+          "id": "noclip",
+          "name": "Отключение коллизий (переключатель)",
+          "command": "tcl"
+        }
+      ],
+      "items": [
+        {
+          "id": "0000000F",
+          "ru": "Золото",
+          "en": "Gold",
+          "category": "currency"
+        },
+        {
+          "id": "0000000A",
+          "ru": "Отмычка",
+          "en": "Lockpick",
+          "category": "tools"
+        },
+        {
+          "id": "0005ACE4",
+          "ru": "Железный слиток",
+          "en": "Iron Ingot",
+          "category": "materials"
+        },
+        {
+          "id": "0005ACE5",
+          "ru": "Стальной слиток",
+          "en": "Steel Ingot",
+          "category": "materials"
+        },
+        {
+          "id": "0005ACE3",
+          "ru": "Серебряный слиток",
+          "en": "Silver Ingot",
+          "category": "materials"
+        },
+        {
+          "id": "0005AD9D",
+          "ru": "Эбонитовый слиток",
+          "en": "Ebony Ingot",
+          "category": "materials"
+        },
+        {
+          "id": "0005AD9E",
+          "ru": "Золотой слиток",
+          "en": "Gold Ingot",
+          "category": "materials"
+        },
+        {
+          "id": "0005AD9F",
+          "ru": "Очищенный лунный камень",
+          "en": "Refined Moonstone",
+          "category": "materials"
+        },
+        {
+          "id": "0005ADA1",
+          "ru": "Очищенный малахит",
+          "en": "Refined Malachite",
+          "category": "materials"
+        },
+        {
+          "id": "0005ADA0",
+          "ru": "Ртутный слиток",
+          "en": "Quicksilver Ingot",
+          "category": "materials"
+        },
+        {
+          "id": "0005AD99",
+          "ru": "Орихалковый слиток",
+          "en": "Orichalcum Ingot",
+          "category": "materials"
+        },
+        {
+          "id": "000DB8A2",
+          "ru": "Двемерский металлический слиток",
+          "en": "Dwarven Metal Ingot",
+          "category": "materials"
+        },
+        {
+          "id": "0005AD93",
+          "ru": "Корундовый слиток",
+          "en": "Corundum Ingot",
+          "category": "materials"
+        },
+        {
+          "id": "000DB5D2",
+          "ru": "Кожа",
+          "en": "Leather",
+          "category": "materials"
+        },
+        {
+          "id": "000800E4",
+          "ru": "Полоски кожи",
+          "en": "Leather Strips",
+          "category": "materials"
+        },
+        {
+          "id": "0006851F",
+          "ru": "Безупречный бриллиант",
+          "en": "Flawless Diamond",
+          "category": "gems"
+        },
+        {
+          "id": "00068523",
+          "ru": "Безупречный сапфир",
+          "en": "Flawless Sapphire",
+          "category": "gems"
+        },
+        {
+          "id": "00068522",
+          "ru": "Безупречный аметист",
+          "en": "Flawless Amethyst",
+          "category": "gems"
+        },
+        {
+          "id": "00068520",
+          "ru": "Безупречный изумруд",
+          "en": "Flawless Emerald",
+          "category": "gems"
+        },
+        {
+          "id": "00068521",
+          "ru": "Безупречный гранат",
+          "en": "Flawless Garnet",
+          "category": "gems"
+        },
+        {
+          "id": "0002E4FF",
+          "ru": "Великий камень душ",
+          "en": "Grand Soul Gem",
+          "category": "gems"
+        },
+        {
+          "id": "0002E504",
+          "ru": "Чёрный камень душ",
+          "en": "Black Soul Gem",
+          "category": "gems"
+        }
+      ]
+    },
+    {
+      "id": "fallout4",
+      "name": "Fallout 4",
+      "shortName": "Fallout 4",
+      "steamIds": [
+        "377160"
+      ],
+      "aliases": [
+        "fallout 4"
+      ],
+      "engine": "bethesda-fallout4",
+      "hint": "Открой пустую консоль (~), раскладка ENG US. В Survival консоль может быть недоступна.",
+      "commands": [
+        {
+          "id": "caps",
+          "name": "Добавить 10 000 крышек",
+          "command": "player.additem 0000000f 10000"
+        },
+        {
+          "id": "god",
+          "name": "Режим бога (переключатель)",
+          "command": "tgm"
+        },
+        {
+          "id": "heal",
+          "name": "Восстановить здоровье",
+          "command": "player.resethealth"
+        },
+        {
+          "id": "noclip",
+          "name": "Отключение коллизий (переключатель)",
+          "command": "tcl"
+        }
+      ],
+      "items": [
+        {
+          "id": "0000000F",
+          "ru": "Крышки",
+          "en": "Bottle Caps",
+          "category": "currency"
+        },
+        {
+          "id": "0000000A",
+          "ru": "Шпилька",
+          "en": "Bobby Pin",
+          "category": "tools"
+        },
+        {
+          "id": "00023736",
+          "ru": "Стимулятор",
+          "en": "Stimpak",
+          "category": "health"
+        },
+        {
+          "id": "00023742",
+          "ru": "Антирадин",
+          "en": "RadAway",
+          "category": "health"
+        },
+        {
+          "id": "00024057",
+          "ru": "Рад-X",
+          "en": "Rad-X",
+          "category": "health"
+        },
+        {
+          "id": "000366C0",
+          "ru": "Очищенная вода",
+          "en": "Purified Water",
+          "category": "health"
+        },
+        {
+          "id": "000731A4",
+          "ru": "Сталь",
+          "en": "Steel",
+          "category": "materials"
+        },
+        {
+          "id": "000731A3",
+          "ru": "Древесина",
+          "en": "Wood",
+          "category": "materials"
+        },
+        {
+          "id": "0006907A",
+          "ru": "Алюминий",
+          "en": "Aluminum",
+          "category": "materials"
+        },
+        {
+          "id": "00069081",
+          "ru": "Винт",
+          "en": "Screw",
+          "category": "materials"
+        },
+        {
+          "id": "001BF72E",
+          "ru": "Клей",
+          "en": "Adhesive",
+          "category": "materials"
+        },
+        {
+          "id": "0006907B",
+          "ru": "Электросхема",
+          "en": "Circuitry",
+          "category": "materials"
+        },
+        {
+          "id": "0006907C",
+          "ru": "Медь",
+          "en": "Copper",
+          "category": "materials"
+        },
+        {
+          "id": "0006907F",
+          "ru": "Пластмасса",
+          "en": "Plastic",
+          "category": "materials"
+        },
+        {
+          "id": "00106D98",
+          "ru": "Резина",
+          "en": "Rubber",
+          "category": "materials"
+        },
+        {
+          "id": "00069082",
+          "ru": "Пружина",
+          "en": "Spring",
+          "category": "materials"
+        },
+        {
+          "id": "0006907E",
+          "ru": "Шестерёнка",
+          "en": "Gears",
+          "category": "materials"
+        },
+        {
+          "id": "0001F276",
+          "ru": "Патроны 10 мм",
+          "en": "10mm Round",
+          "category": "ammo"
+        },
+        {
+          "id": "0004CE87",
+          "ru": "Патроны .38",
+          "en": ".38 Round",
+          "category": "ammo"
+        },
+        {
+          "id": "0001F66A",
+          "ru": "Патроны .45",
+          "en": ".45 Round",
+          "category": "ammo"
+        },
+        {
+          "id": "0001F66B",
+          "ru": "Патроны .308",
+          "en": ".308 Round",
+          "category": "ammo"
+        },
+        {
+          "id": "0001F278",
+          "ru": "Патроны 5,56 мм",
+          "en": "5.56mm Round",
+          "category": "ammo"
+        },
+        {
+          "id": "0001F66C",
+          "ru": "Патроны 5 мм",
+          "en": "5mm Round",
+          "category": "ammo"
+        },
+        {
+          "id": "0001F673",
+          "ru": "Патроны для дробовика",
+          "en": "Shotgun Shell",
+          "category": "ammo"
+        },
+        {
+          "id": "000C1897",
+          "ru": "Ядерная батарея",
+          "en": "Fusion Cell",
+          "category": "ammo"
+        }
+      ]
+    },
+    {
+      "id": "minecraft",
+      "name": "Minecraft Java Edition (1.19.4+)",
+      "shortName": "Minecraft",
+      "steamIds": [],
+      "aliases": [
+        "minecraft"
+      ],
+      "engine": "minecraft",
+      "hint": "В собственном одиночном мире разреши команды. Прямое управление доступно для собственного локального выделенного сервера.",
+      "commands": [
+        {
+          "id": "heal",
+          "name": "Восстановить здоровье",
+          "command": "/effect give @s minecraft:instant_health 1 10 true"
+        },
+        {
+          "id": "resist",
+          "name": "Сопротивление урону на 5 минут",
+          "command": "/effect give @s minecraft:resistance 300 4 true"
+        },
+        {
+          "id": "resistoff",
+          "name": "Снять сопротивление",
+          "command": "/effect clear @s minecraft:resistance"
+        },
+        {
+          "id": "diamonds",
+          "name": "64 алмаза",
+          "command": "/give @s minecraft:diamond 64"
+        },
+        {
+          "id": "creative",
+          "name": "Творческий режим",
+          "command": "/gamemode creative"
+        },
+        {
+          "id": "survival",
+          "name": "Выживание",
+          "command": "/gamemode survival"
+        }
+      ],
+      "items": [
+        {
+          "id": "diamond",
+          "ru": "Алмаз",
+          "en": "Diamond",
+          "category": "materials"
+        },
+        {
+          "id": "iron_ingot",
+          "ru": "Железный слиток",
+          "en": "Iron Ingot",
+          "category": "materials"
+        },
+        {
+          "id": "gold_ingot",
+          "ru": "Золотой слиток",
+          "en": "Gold Ingot",
+          "category": "materials"
+        },
+        {
+          "id": "netherite_ingot",
+          "ru": "Незеритовый слиток",
+          "en": "Netherite Ingot",
+          "category": "materials"
+        },
+        {
+          "id": "emerald",
+          "ru": "Изумруд",
+          "en": "Emerald",
+          "category": "gems"
+        },
+        {
+          "id": "coal",
+          "ru": "Уголь",
+          "en": "Coal",
+          "category": "materials"
+        },
+        {
+          "id": "redstone",
+          "ru": "Редстоун",
+          "en": "Redstone Dust",
+          "category": "materials"
+        },
+        {
+          "id": "lapis_lazuli",
+          "ru": "Лазурит",
+          "en": "Lapis Lazuli",
+          "category": "materials"
+        },
+        {
+          "id": "copper_ingot",
+          "ru": "Медный слиток",
+          "en": "Copper Ingot",
+          "category": "materials"
+        },
+        {
+          "id": "oak_log",
+          "ru": "Дубовое бревно",
+          "en": "Oak Log",
+          "category": "blocks"
+        },
+        {
+          "id": "stone",
+          "ru": "Камень",
+          "en": "Stone",
+          "category": "blocks"
+        },
+        {
+          "id": "glass",
+          "ru": "Стекло",
+          "en": "Glass",
+          "category": "blocks"
+        },
+        {
+          "id": "obsidian",
+          "ru": "Обсидиан",
+          "en": "Obsidian",
+          "category": "blocks"
+        },
+        {
+          "id": "torch",
+          "ru": "Факел",
+          "en": "Torch",
+          "category": "blocks"
+        },
+        {
+          "id": "bread",
+          "ru": "Хлеб",
+          "en": "Bread",
+          "category": "health"
+        },
+        {
+          "id": "golden_apple",
+          "ru": "Золотое яблоко",
+          "en": "Golden Apple",
+          "category": "health"
+        },
+        {
+          "id": "cooked_beef",
+          "ru": "Стейк",
+          "en": "Steak",
+          "category": "health"
+        },
+        {
+          "id": "diamond_sword",
+          "ru": "Алмазный меч",
+          "en": "Diamond Sword",
+          "category": "weapons"
+        },
+        {
+          "id": "bow",
+          "ru": "Лук",
+          "en": "Bow",
+          "category": "weapons"
+        },
+        {
+          "id": "arrow",
+          "ru": "Стрела",
+          "en": "Arrow",
+          "category": "ammo"
+        },
+        {
+          "id": "netherite_sword",
+          "ru": "Незеритовый меч",
+          "en": "Netherite Sword",
+          "category": "weapons"
+        },
+        {
+          "id": "diamond_pickaxe",
+          "ru": "Алмазная кирка",
+          "en": "Diamond Pickaxe",
+          "category": "tools"
+        },
+        {
+          "id": "elytra",
+          "ru": "Элитры",
+          "en": "Elytra",
+          "category": "armor"
+        },
+        {
+          "id": "diamond_chestplate",
+          "ru": "Алмазный нагрудник",
+          "en": "Diamond Chestplate",
+          "category": "armor"
+        },
+        {
+          "id": "totem_of_undying",
+          "ru": "Тотем бессмертия",
+          "en": "Totem of Undying",
+          "category": "tools"
+        },
+        {
+          "id": "ender_pearl",
+          "ru": "Жемчуг Края",
+          "en": "Ender Pearl",
+          "category": "tools"
+        }
+      ]
+    }
+  ]
+}
