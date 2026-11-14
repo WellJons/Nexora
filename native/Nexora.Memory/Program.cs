@@ -255,20 +255,26 @@ internal static class Program
             if(!Cleanup.SelfTest())return 10;
             if(!PlaySession.SelfTest())return 15;
             if(!PluginArchive.SelfTest())return 16;
+            if(!Gk2Live.Valid("energy",100)||Gk2Live.Valid("unknown",1)||Gk2Live.Valid("tech_red",1.5)||Gk2Live.Valid("money",double.NaN))return 17;
             Console.WriteLine("Nexora native self-test passed.");return 0;
         }
         using var scanner=new Scanner();
         using var play=new PlaySession();
+        using var gk2=new Gk2Live();
         while(true){
             var input=Task.Run(()=>Console.ReadLine());
-            while(!input.Wait(400)){scanner.Tick();play.Tick();}
+            while(!input.Wait(400)){scanner.Tick();play.Tick();gk2.Tick();}
             string? line=input.GetAwaiter().GetResult();
             if(line==null)break;
-            scanner.Tick();play.Tick();
+            scanner.Tick();play.Tick();gk2.Tick();
             try{
             if(line.Length>32768)throw new Exception("Request too large.");
             using var doc=JsonDocument.Parse(line);var j=doc.RootElement;
             object? data=S(j,"op") switch {
+                "gk2-start"=>gk2.Start(S(j,"root"),j.GetProperty("exact").GetBoolean()),
+                "gk2-state"=>gk2.Snapshot(),
+                "gk2-set"=>gk2.Change(S(j,"key"),N(j,"value"),j.GetProperty("hold").GetBoolean()),
+                "gk2-release"=>gk2.Release(S(j,"key")),
                 "console-send"=>ConsoleInput.Send(S(j,"root"),j.GetProperty("exact").GetBoolean(),S(j,"profile"),S(j,"command")),
                 "window-info"=>WindowInfo.Get(S(j,"handle")),
                 "plugin-install"=>PluginArchive.Install(S(j,"archive"),S(j,"sha256"),j.GetProperty("size").GetInt64(),S(j,"folder"),S(j,"package")),
