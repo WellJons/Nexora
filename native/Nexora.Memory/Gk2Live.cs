@@ -21,7 +21,7 @@ internal sealed class Gk2Live : IDisposable
             if(found.Count!=1)throw new Exception("Запустите одну установленную копию Graveyard Keeper 2 и загрузите сохранение. Поддерживается Mono.");
             mem=found[0];pid=mem.TargetPid;mem.Budget(4L*1024*1024*1024,55000);locator=new GameResLocator(mem);
             if(!locator.RefreshCurrentSaveAnchor()||!locator.IsInGameSession()||!locator.IsAnchorStillValid())throw Invalid();
-            warning="";return Snapshot();
+            warning="";try{return Inventory();}catch{return Snapshot();}
         }catch{Dispose();throw;}finally{foreach(var c in found)if(c!=mem)c.Dispose();}
     }
     private bool Verify(GameResAtom a)=>mem!=null&&locator!=null&&locator.GetClassNameUncached(mem.ReadLong(a.Address))=="GameResAtom"&&locator.ReadMonoString(mem.ReadLong(a.Address+GameResLocator.ATOM_TYPE))==a.TypeName;
