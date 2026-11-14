@@ -51,6 +51,24 @@ internal sealed class Gk2Live : IDisposable
             var result=Snapshot();if(mem==null)throw Invalid();return result;
         }catch{warning="Запись остановлена; проверьте игру.";Dispose();throw;}
     }
+    private List<GameResLocator.ItemRef> InventoryRows(){
+        if(mem==null||locator==null||!mem.Alive)throw Invalid();mem.Budget(8*1024*1024,3000);
+        if(!locator.IsInGameSession()||!locator.IsAnchorStillValid()||!locator.IsSameSaveSlot())throw Invalid();var anchor=locator.CurrentPlayerData;var inv=locator.PlayerInventory;
+        if(inv==0||!locator.IsPlayerInventory(inv))throw Invalid();var rows=locator.ListInventoryItems();
+        if(locator.CurrentPlayerData!=anchor||locator.PlayerInventory!=inv||!locator.IsSameSaveSlot()||!locator.IsInGameSession())throw Invalid();
+        return rows.Where(x=>x.Count>0&&x.ItemId!=null&&x.ItemId.Length<=160&&x.ItemId.All(c=>!char.IsControl(c))).ToList();
+    }
+    internal object Inventory(){
+        var rows=InventoryRows();var resources=Read();return new{connected=true,pid,warning,fields=resources.Select(x=>new{key=x.Key,label=Labels[x.Key],value=x.Value.Value,held=holds.ContainsKey(x.Key),target=holds.TryGetValue(x.Key,out var h)?(float?)h.value:null}).ToArray(),items=rows.GroupBy(x=>x.ItemId,StringComparer.Ordinal).Select(g=>new{id=g.Key,name=g.Key.Replace('_',' '),count=g.Sum(x=>(long)x.Count),stacks=g.Count()}).ToArray(),inventoryMessage="Названия взяты из игровых ID. Стопки с одинаковым ID не изменяются."};
+    }
+    internal object Item(string id,int count,int expected){
+        if(count<1||count>999||expected<1||id.Length>160)throw new Exception("Недопустимое количество.");
+        var rows=InventoryRows();var matches=rows.Where(x=>x.ItemId==id).ToArray();if(matches.Length!=1||matches[0].Count!=expected)throw new Exception("Стопка изменилась или неоднозначна. Обновите рюкзак.");
+        if(mem==null||locator==null||!locator.IsSameSaveSlot()||!locator.IsInGameSession()||!locator.IsAnchorStillValid())throw Invalid();
+        // Re-enumerate current inventory and reject a moved or changed stack.
+        var current=InventoryRows().Where(x=>x.ItemId==id).ToArray();if(current.Length!=1||current[0].Address!=matches[0].Address||current[0].Count!=expected||!locator.IsSameSaveSlot()||!locator.WriteItemCount(current[0].Address,id,count))throw Invalid();
+        return Inventory();
+    }
     internal object Release(string key){holds.Remove(key);return Snapshot();}
     internal void Tick(){
         if(holds.Count==0||Environment.TickCount64<nextTick)return;nextTick=Environment.TickCount64+1000;

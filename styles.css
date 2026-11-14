@@ -92,3 +92,5 @@ button:not(:disabled):active{transform:scale(.98)}
 #gk2-live-status{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 13px;margin-bottom:12px;background:#231e32;border:1px solid #594877;border-radius:10px}#gk2-live-status[hidden]{display:none!important}#gk2-live-status strong{font-size:12px}
 
 .trainer-discovery{margin:14px 0;padding:15px;border:1px solid #4b4062;border-radius:12px;background:linear-gradient(120deg,#272236,#1e1e2b)}.trainer-discovery>.eyebrow{margin-bottom:5px}.trainer-discovery .profilequick{margin:8px 0}.trainer-discovery-status{color:#c3a9f1!important;display:block;font-size:11px}.trainer-discovery .trainer-switch-row:last-child{border:0}
+
+.gk2-editor .spawn-row .modinput{width:85px;min-width:0}.gk2-editor>.modinput{width:100%;margin:12px 0}.gk2-editor .spawn-results{margin-top:8px}
