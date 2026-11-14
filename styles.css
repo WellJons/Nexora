@@ -100,3 +100,5 @@ button:not(:disabled):active{transform:scale(.98)}
 .adapter-summary{display:flex;align-items:center;flex-wrap:wrap;gap:12px;padding:12px;margin:14px 0;border:1px solid #514468;border-radius:10px;background:#252131}.adapter-summary strong{flex:1;min-width:145px}.gk2-editor .profilequick select{max-width:100%;min-width:170px}
 
 .gk2-editor .spawn-row{min-height:54px}.gk2-editor .spawn-row small{line-height:1.45}
+
+.external-trainer{padding:15px;background:#252131;border:1px solid #554467;border-radius:12px;margin:14px 0}.external-trainer h3{margin:6px 0}.external-trainer .profilequick{flex-wrap:wrap;margin-top:10px}#external-status{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 13px;margin-bottom:12px;border-radius:10px;border:1px solid #594877;background:#231e32}#external-status[hidden]{display:none!important}
