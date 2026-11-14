@@ -23,6 +23,7 @@ const {createLocalModel,packFiles}=require('./local-model.cjs');
 const updates=require('./updates.cjs').createUpdates(app.getVersion());
 const {createInstaller}=require('./update-install.cjs');let updater,updateLaunching=false;
 const {commandCatalog,lookupCommand}=require('./game-commands.cjs');
+const gameItems=require('./game-items.cjs'),rcon=require('./local-rcon.cjs');let localRcon=null,rconBusy=false;
 const {createTranslation}=require('./translation-window.cjs');
 const {settings:translationSettings}=require('./translator.cjs');
 const {discoverEpic,epicUri,normalizeProfile,recordLaunch,contained}=require('./library.cjs');
@@ -179,6 +180,14 @@ safeHandler('updates:install',async()=>{
 });
 safeHandler('commands:list',()=>commandCatalog());
 safeHandler('commands:copy',(game,command)=>{const value=lookupCommand(game,command);clipboard.writeText(value);return true});
+safeHandler('items:search',(game,q,cat)=>{if(typeof q!=='string'||q.length>200||typeof cat!=='string')throw Error('Неверный поиск');return gameItems.searchItems(game,q,cat)});
+safeHandler('items:copy',(game,id,count)=>{clipboard.writeText(gameItems.spawnCommand(game,id,count));return true});
+safeHandler('rcon:connect',async value=>{if(rconBusy)throw Error('Операция выполняется');const v=rcon.settings(value);rconBusy=true;try{const answer=await confirmDialog.show({type:'warning',title:'Локальный Minecraft',message:'Подключиться к собственному серверу?',detail:'Только 127.0.0.1. RCON должен быть включён заранее на вашем выделенном сервере. Не открывайте порт в интернет. Пароль хранится только в памяти. Действия меняют мир выбранного игрока.',buttons:['Отмена','Подключить'],cancelId:0,defaultId:0});if(answer.response!==1)return null;await rcon.exchange(v,'list');localRcon=v;return {player:v.player}}finally{rconBusy=false}});
+safeHandler('rcon:disconnect',()=>{if(rconBusy)throw Error('Операция выполняется');localRcon=null;return true});
+async function localCommand(build){if(!localRcon||rconBusy)throw Error('Подключите локальный сервер');rconBusy=true;try{return {response:await rcon.exchange(localRcon,build(localRcon.player))}}catch(e){localRcon=null;throw e}finally{rconBusy=false}}
+safeHandler('rcon:action',(id,on)=>localCommand(player=>rcon.actionCommand(player,id,on)));
+safeHandler('rcon:item',(id,count)=>localCommand(player=>gameItems.spawnCommand('minecraft',id,count,player)));
+
 
 
 safeHandler('translation:start',async value=>{
