@@ -1,0 +1,2 @@
+const {contextBridge,ipcRenderer}=require('electron');
+contextBridge.exposeInMainWorld('nexora',Object.freeze({list:()=>ipcRenderer.invoke('library:list'),add:()=>ipcRenderer.invoke('library:add'),favorite:id=>ipcRenderer.invoke('library:favorite',id),launch:id=>ipcRenderer.invoke('library:launch',id),backup:id=>ipcRenderer.invoke('saves:backup',id),openBackup:id=>ipcRenderer.invoke('saves:open',id)}));
