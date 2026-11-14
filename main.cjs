@@ -56,7 +56,7 @@ function steamRoots(){
  return [...new Set(roots)];
 }
 function gogGames(){if(process.platform!=='win32')return [];const result=[];for(const hive of ['HKLM\\SOFTWARE\\GOG.com\\Games','HKLM\\SOFTWARE\\WOW6432Node\\GOG.com\\Games']){try{result.push(...discoverGog(execFileSync('reg.exe',['query',hive,'/s'],{encoding:'utf8',windowsHide:true,timeout:3000,maxBuffer:8*1024*1024})))}catch{}}return result}
-function refresh(scan=true){if(scan){const all=[...steamRoots().flatMap(discoverSteam),...gogGames()];if(process.platform==='win32'&&process.env.ProgramData)all.push(...discoverEpic(path.join(process.env.ProgramData,'Epic','EpicGamesLauncher','Data','Manifests')));const manual=state.manual.map(g=>({...g,installed:typeof g.path==='string'&&fs.existsSync(g.path)}));games=mergeGames(all,manual)}return {games:games.map(g=>({...g,trainerProfile:gameProfiles.match(g)})),favorites:state.favorites,history:state.history,backups:state.backups,downloads:state.downloads,installedMods:state.installedMods,profiles:state.profiles,launchLog:state.launchLog,trainerRecipes:state.trainerRecipes}}
+function refresh(scan=true){if(scan){const all=[...steamRoots().flatMap(discoverSteam),...gogGames()];if(process.platform==='win32'&&process.env.ProgramData)all.push(...discoverEpic(path.join(process.env.ProgramData,'Epic','EpicGamesLauncher','Data','Manifests')));const manual=state.manual.map(g=>({...g,installed:typeof g.path==='string'&&fs.existsSync(g.path)}));games=mergeGames(all,manual,gameProfiles.libraryEntries())}return {games:games.map(g=>({...g,trainerProfile:gameProfiles.match(g)})),favorites:state.favorites,history:state.history,backups:state.backups,downloads:state.downloads,installedMods:state.installedMods,profiles:state.profiles,launchLog:state.launchLog,trainerRecipes:state.trainerRecipes}}
 function safeHandler(name,fn){ipcMain.handle(name,async(e,...args)=>{if(!win||e.sender!==win.webContents||e.senderFrame!==win.webContents.mainFrame)throw Error('Invalid origin');return fn(...args)})}
 safeHandler('play:state',()=>tracker.state());
 safeHandler('play:processes',async id=>{if(tracker.state().active||tracker.state().busy)throw Error('Завершите текущую сессию');const g=games.find(g=>g.id===id&&g.installed);return playBridge.request('list',gameScope(g))});
@@ -180,8 +180,9 @@ safeHandler('updates:install',async()=>{
  if(blocked())throw Error('Завершите игровые сессии и операции с файлами перед обновлением.');
  updateLaunching=true;try{const info=await updater.verified();const answer=await confirmDialog.show({type:'question',title:'Обновление Nexora',message:'Установить Nexora '+info.version+'?',detail:'Установщик скачан из официального релиза и проверен по SHA-256. Программа закроется, мастер обновит файлы в текущей папке. Модели, настройки, моды и сохранения остаются. Установщик пока не подписан цифровой подписью.',buttons:['Отмена','Обновить'],defaultId:0,cancelId:0});if(answer.response!==1)return false;if(blocked())throw Error('Сначала завершите текущие операции');await updater.verified();await new Promise((resolve,reject)=>{const p=spawn(info.file,['/DIR='+installDir,'/NORESTART'],{detached:true,stdio:'ignore',windowsHide:false});p.once('error',reject);p.once('spawn',()=>{p.unref();resolve()})});app.quit();return true}finally{updateLaunching=false}
 });
-safeHandler('commands:list',()=>commandCatalog());
-safeHandler('catalog:sync',async()=>{const result=await gameProfiles.sync(app.getPath('userData'));return {result,profiles:commandCatalog(),data:refresh(false)}});
+safeHandler('commands:list',()=>gameProfiles.summaries());
+safeHandler('catalog:details',id=>gameProfiles.details(id));
+safeHandler('catalog:sync',async()=>{const result=await gameProfiles.sync(app.getPath('userData'));return {result,profiles:gameProfiles.summaries(),data:refresh(true)}});
 safeHandler('catalog:state',()=>gameProfiles.profileState());
 safeHandler('commands:copy',(game,command)=>{const value=lookupCommand(game,command);clipboard.writeText(value);return true});
 function consoleProfile(g){const n=(g?.name||'').toLowerCase();return ['steam:489830','steam:72850'].includes(g?.id)||n.includes('skyrim')?'skyrim':g?.id==='steam:377160'||n.includes('fallout 4')?'fallout4':null}
@@ -196,7 +197,7 @@ async function sendQueuedConsole(){if(consoleBusy)return;const q=queuedConsole;q
 safeHandler('commands:queue',(gameId,profile,id)=>queueConsole(gameId,profile,lookupCommand(profile,id)));
 safeHandler('items:queue',(gameId,profile,id,count)=>queueConsole(gameId,profile,gameItems.spawnCommand(profile,id,count)));
 
-safeHandler('items:search',(game,q,cat)=>{if(typeof q!=='string'||q.length>200||typeof cat!=='string')throw Error('Неверный поиск');return gameItems.searchItems(game,q,cat)});
+safeHandler('items:search',(game,q,cat,offset=0)=>{if(typeof q!=='string'||q.length>200||typeof cat!=='string')throw Error('Неверный поиск');return gameItems.searchPage(game,q,cat,offset)});
 safeHandler('items:copy',(game,id,count)=>{clipboard.writeText(gameItems.spawnCommand(game,id,count));return true});
 safeHandler('rcon:connect',async value=>{if(rconBusy)throw Error('Операция выполняется');const v=rcon.settings(value);rconBusy=true;try{const answer=await confirmDialog.show({type:'warning',title:'Локальный Minecraft',message:'Подключиться к собственному серверу?',detail:'Только 127.0.0.1. RCON должен быть включён заранее на вашем выделенном сервере. Не открывайте порт в интернет. Пароль хранится только в памяти. Действия меняют мир выбранного игрока.',buttons:['Отмена','Подключить'],cancelId:0,defaultId:0});if(answer.response!==1)return null;await rcon.exchange(v,'list');localRcon=v;return {player:v.player}}finally{rconBusy=false}});
 safeHandler('rcon:disconnect',()=>{if(rconBusy)throw Error('Операция выполняется');localRcon=null;return true});

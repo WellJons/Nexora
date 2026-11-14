@@ -20,10 +20,10 @@ function discoverSteam(root){
  for(const f of entries){if(!/^appmanifest_\d+\.acf$/i.test(f))continue;const s=read(path.join(dir,f));const id=field(s,'appid'),name=field(s,'name'),folder=field(s,'installdir');
  if(!/^\d+$/.test(id)||!name||!folder||folder!==path.basename(folder)||folder==='..'||folder==='.')continue;
  const installedPath=path.join(dir,'common',folder);try{if(!fs.statSync(installedPath).isDirectory())continue}catch{continue}
- games.set('steam:'+id,{id:'steam:'+id,name,path:installedPath,installed:true,kind:'steam'});
+ games.set('steam:'+id,{id:'steam:'+id,name,path:installedPath,installed:true,kind:'steam',buildId:/^\d+$/.test(field(s,'buildid'))?field(s,'buildid'):null});
  }}return [...games.values()].sort((a,b)=>a.name.localeCompare(b.name));
 }
-function mergeGames(installed,manual){const result=new Map(catalog.map(g=>[g.id,{...g,installed:false,kind:'steam'}]));for(const g of [...installed,...manual])result.set(g.id,{...result.get(g.id),...g});return [...result.values()]}
+function mergeGames(installed,manual,profiles=[]){const result=new Map(catalog.map(g=>[g.id,{...g,installed:false,kind:'steam'}]));for(const g of profiles)if(!result.has(g.id))result.set(g.id,{...g,installed:false});for(const g of [...installed,...manual])result.set(g.id,{...result.get(g.id),...g});return [...result.values()]}
 function copySave(src,dest){
  const from=fs.realpathSync(src);fs.mkdirSync(dest,{recursive:true});const to=fs.realpathSync(dest);
  const norm=p=>process.platform==='win32'?p.toLowerCase():p;

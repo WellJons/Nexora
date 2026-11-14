@@ -4,4 +4,5 @@ function spawnCommand(game,id,count,player=null){if(!Number.isSafeInteger(count)
 function norm(v){return String(v||'').normalize('NFKC').toLowerCase().replaceAll('ё','е').trim()}
 const aliases={'0005ACE4':'железо','iron_ingot':'железо','diamond':'алмазы бриллиант','00023736':'стимпак стимпакет','001BF72E':'адгезив','gold_ingot':'золото'};
 function searchItems(game,q,cat='all'){const terms=norm(q).split(/\s+/).filter(Boolean);return listItems(game).filter(x=>(cat==='all'||x.category===cat)&&terms.every(t=>norm(x.ru+' '+x.en+' '+x.id+' '+x.label+' '+(aliases[x.id]||'')).includes(t)))}
-module.exports={categories,listItems,searchItems,spawnCommand};
+function searchPage(game,q,cat='all',offset=0){if(!Number.isSafeInteger(offset)||offset<0||offset>15000)throw Error('Неверная страница');const rows=searchItems(game,q,cat);return {total:rows.length,offset,limit:60,rows:rows.slice(offset,offset+60)}}
+module.exports={categories,listItems,searchItems,searchPage,spawnCommand};
