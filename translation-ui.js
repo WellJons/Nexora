@@ -1,0 +1,1 @@
+function draw(s){document.getElementById('status').textContent=s.status;document.getElementById('caption').textContent=s.translation||'Ожидание игрового текста…'}window.caption.onChange(draw);window.caption.state().then(draw).catch(()=>{});

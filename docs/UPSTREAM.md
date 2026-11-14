@@ -22,3 +22,7 @@ Dependencies are used through their public APIs, not copied into application sou
 The 0.5 external trainer workflow is interoperable with separately installed Cheat Engine and Apprentice. No trainer source or binary is included; their own license and distribution remain separate.
 
 In 0.7 the external-launch approach was removed. The integrated Nexora memory module is original C# code using Windows APIs. The .NET runtime is bundled by SDK publishing; its third-party notices are retained with the package.
+
+## 0.12 OCR
+
+Tesseract.js 6.0.1 and the packaged English traineddata (upstream npm packages) are included with their original license notices. MyMemory and DeepL are optional network translation services, used through documented APIs and their own terms. No remote executable code is fetched at runtime for OCR.
