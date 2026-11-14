@@ -29,8 +29,6 @@ DisableWelcomePage=no
 DisableProgramGroupPage=yes
 CloseApplications=yes
 RestartApplications=no
-SetupLogging=yes
-UninstallLogging=yes
 VersionInfoVersion={#AppVersion}
 [Languages]
 Name: "russian"; MessagesFile: "compiler:Languages\Russian.isl"
@@ -60,7 +58,7 @@ Filename: "{app}\Nexora.exe"; Description: "{cm:Launch}"; Flags: nowait postinst
 function PrepareToInstall(var NeedsRestart: Boolean): String;
 var
   FindRec: TFindRec;
-  Dir: String;
+  Dir, DataDir: String;
   NonEmpty: Boolean;
 begin
   Result := '';
@@ -76,7 +74,8 @@ begin
       FindClose(FindRec);
     end;
   end;
-  if (CompareText(Dir, ExpandConstant('{userappdata}\Nexora')) = 0) or
+  DataDir := AddBackslash(ExpandConstant('{userappdata}\Nexora'));
+  if (CompareText(Copy(AddBackslash(Dir), 1, Length(DataDir)), DataDir) = 0) or
      (NonEmpty and not FileExists(AddBackslash(Dir) + 'installed.marker')) then
     Result := CustomMessage('BadFolder');
 end;
@@ -92,6 +91,7 @@ begin
     if not UninstallSilent then
       if MsgBox(CustomMessage('Purge'), mbConfirmation, MB_YESNO or MB_DEFBUTTON2) = IDYES then
         Mode := 'purge-backups';
+    Code := -1;
     Helper := ExpandConstant('{app}\resources\app\native-bin\Nexora.Memory.exe');
     if (not Exec(Helper, '--uninstall-cleanup ' + Mode, '', SW_HIDE, ewWaitUntilTerminated, Code)) or (Code <> 0) then
     begin

@@ -51,10 +51,12 @@ internal static class Cleanup
                 File.WriteAllText(tmp,retained.ToJsonString());File.Move(tmp,index,true);
             }catch{return 13;}
         }
-        foreach(string name in Owned.Concat(new[]{"library.json"})){
+        foreach(string name in Owned){
             string p=Path.Combine(root,name);if(Protected(p)){warnings++;continue;}try{DeleteTree(p);}catch{warnings++;}
         }
         if(purge){foreach(string p in new[]{backups,index}){if(Protected(p)){warnings++;continue;}try{DeleteTree(p);}catch{warnings++;}}}
+        // Keep path metadata if any cleanup failed, so later runs cannot forget protected paths.
+        if(warnings==0&&!Protected(library)){try{DeleteTree(library);}catch{warnings++;}}else if(Protected(library))warnings++;
         // Unknown user files and retained backups are never recursively removed.
         try{if(!Directory.EnumerateFileSystemEntries(root).Any())Directory.Delete(root);}catch{warnings++;}
         return warnings==0?0:14;
@@ -69,7 +71,7 @@ internal static class Cleanup
             if(Remove(user,false)!=0||Directory.Exists(Path.Combine(user,"translation-models"))||Directory.Exists(Path.Combine(user,"Cache"))||Directory.Exists(Path.Combine(user,"scratch"))||File.Exists(Path.Combine(user,"library.json"))||!File.Exists(Path.Combine(user,"backup-index.json"))||!File.Exists(Path.Combine(keep,"save.dat"))||!File.Exists(Path.Combine(mod,"mod.jar")))return false;
             if(Remove(user,true)!=0||Directory.Exists(Path.Combine(user,"backups"))||File.Exists(Path.Combine(user,"backup-index.json"))||!File.Exists(Path.Combine(user,"my-file.txt"))||!File.Exists(Path.Combine(mod,"mod.jar")))return false;
             Directory.CreateDirectory(Path.Combine(user,"scratch"));File.WriteAllText(Path.Combine(user,"library.json"),JsonSerializer.Serialize(new{downloads=new[]{new{path=Path.Combine(user,"scratch","chosen.zip")}}}));File.WriteAllText(Path.Combine(user,"scratch","chosen.zip"),"chosen");
-            if(Remove(user,false)!=14||!File.Exists(Path.Combine(user,"scratch","chosen.zip")))return false;
+            if(Remove(user,false)!=14||!File.Exists(Path.Combine(user,"scratch","chosen.zip"))||!File.Exists(Path.Combine(user,"library.json")))return false;
             File.WriteAllText(Path.Combine(user,"library.json"),"{broken");
             return Remove(user,false)==13&&File.Exists(Path.Combine(user,"scratch","chosen.zip"));
         }finally{Directory.Delete(root,true);}

@@ -3,7 +3,9 @@ const fs=require('node:fs'),path=require('node:path');
 const {execFileSync,spawn}=require('node:child_process');
 const {randomUUID}=require('node:crypto');
 const {configureScratch}=require('./scratch.cjs');
-app.setPath('userData',path.join(app.getPath('appData'),'Nexora'));
+const profileRoot=path.join(app.getPath('appData'),'Nexora');
+fs.mkdirSync(profileRoot,{recursive:true});
+app.setPath('userData',profileRoot);
 if(!app.requestSingleInstanceLock()){app.quit();process.exit(0)}
 const {discoverSteam,mergeGames}=require('./core.cjs');
 const mods=require('./mods.cjs');
