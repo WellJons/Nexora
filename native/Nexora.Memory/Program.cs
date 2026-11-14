@@ -254,6 +254,7 @@ internal static class Program
             if(!Scanner.SelfTestWatch())return 9;
             if(!Cleanup.SelfTest())return 10;
             if(!PlaySession.SelfTest())return 15;
+            if(!PluginArchive.SelfTest())return 16;
             Console.WriteLine("Nexora native self-test passed.");return 0;
         }
         using var scanner=new Scanner();
@@ -269,6 +270,9 @@ internal static class Program
             using var doc=JsonDocument.Parse(line);var j=doc.RootElement;
             object? data=S(j,"op") switch {
                 "window-info"=>WindowInfo.Get(S(j,"handle")),
+                "plugin-install"=>PluginArchive.Install(S(j,"archive"),S(j,"sha256"),j.GetProperty("size").GetInt64(),S(j,"folder"),S(j,"package")),
+                "plugin-status"=>PluginArchive.Status(S(j,"folder"),S(j,"package")),
+                "plugin-toggle"=>PluginArchive.Toggle(S(j,"folder"),S(j,"package"),j.GetProperty("enabled").GetBoolean()),
                 "play-start"=>play.Start(j.GetProperty("pid").GetInt32(),S(j,"root"),j.GetProperty("exact").GetBoolean(),j.GetProperty("boost").GetBoolean()),
                 "play-sample"=>play.Sample(),
                 "play-stop"=>play.Stop(),

@@ -26,6 +26,7 @@ const {discoverGog}=require('./gog.cjs');
 const {gameScope,createBridge,numeric}=require('./memory-bridge.cjs');
 const bridge=createBridge(path.join(__dirname,'native-bin','Nexora.Memory.exe'));
 const playBridge=createBridge(path.join(__dirname,'native-bin','Nexora.Memory.exe'));
+const pluginBridge=createBridge(path.join(__dirname,'native-bin','Nexora.Memory.exe'));
 const {createTracker}=require('./game-session.cjs');let tracker;
 let activeGame=null;
 const vault=require('./save-vault.cjs');
@@ -85,13 +86,21 @@ safeHandler('thunder:download',async(game,id,version)=>{
  if(thunderBusy)throw Error('Уже выполняется загрузка');thunderBusy=true;
  try{const p=await thunder.details(game,id);if(!p.versions.some(v=>v.version===version))throw Error('Версия не найдена');
  const r=await dialog.showSaveDialog(win,{title:'Сохранить архив мода',defaultPath:path.join(app.getPath('downloads'),p.id+'-'+version+'.zip'),filters:[{name:'ZIP',extensions:['zip']}]});if(r.canceled)return null;
- const result=await thunder.download(game,id,version,r.filePath);state.downloads.unshift({id:randomUUID(),path:r.filePath,provider:'Thunderstore',project:id,version,date:new Date().toISOString(),...result});state.downloads=state.downloads.slice(0,100);persist();return refresh(false);
+ const result=await thunder.download(game,id,version,r.filePath);state.downloads.unshift({id:randomUUID(),path:r.filePath,provider:'Thunderstore',project:id,version,game,dependencies:p.versions.find(v=>v.version===version)?.dependencies||[],date:new Date().toISOString(),...result});state.downloads=state.downloads.slice(0,100);persist();return refresh(false);
  }finally{thunderBusy=false}
 });
 safeHandler('mods:show',id=>{const d=state.downloads.find(v=>v.id===id);if(!d)throw Error('Загрузка не найдена');shell.showItemInFolder(d.path);return true});
-safeHandler('manager:list',async()=>Promise.all(state.installedMods.map(async m=>({...m,status:await manager.status(m)}))));
+safeHandler('manager:list',()=>exclusive(async()=>{const rows=[];for(const m of state.installedMods){let status;try{status=m.provider==='Thunderstore'?await pluginBridge.request('plugin-status',{folder:m.folder,package:m.project}):await manager.status(m)}catch{status='conflict'}rows.push({...m,status})}return rows}));
+
 safeHandler('manager:install',id=>exclusive(async()=>{
- const d=state.downloads.find(x=>x.id===id);if(!d||d.provider!=='Modrinth')throw Error('Автоустановка доступна только для JAR-файлов Modrinth');
+ const d=state.downloads.find(x=>x.id===id);if(!d)throw Error('Загрузка не найдена');
+ if(d.provider==='Thunderstore'){
+  const pick=await dialog.showOpenDialog(win,{title:'Выберите существующую папку BepInEx нужной игры',properties:['openDirectory']});if(pick.canceled)return null;
+  const folder=fs.realpathSync(pick.filePaths[0]);const answer=await dialog.showMessageBox(win,{type:'warning',title:'Установка BepInEx-плагина',message:d.project+' '+d.version,detail:'Закройте игру. Уже установленный BepInEx обязателен. Поддерживаются обычные плагины; загрузчики и patchers не устанавливаются. Проверьте совместимость и установите необходимые зависимости вручную: '+(d.dependencies?.join(', ')||'нет данных / не заявлены')+'\nМоды содержат исполняемый код. Nexora не проверяет его безопасность. Файлы игры не перезаписываются.',buttons:['Отмена','Установить'],defaultId:0,cancelId:0});if(answer.response!==1)return null;
+  const installed=await pluginBridge.request('plugin-install',{archive:d.path,sha256:d.sha256,size:d.size,folder,package:d.project});
+  state.installedMods.unshift({...installed,id:randomUUID(),provider:'Thunderstore',project:d.project,name:d.project,version:d.version,game:d.game,date:new Date().toISOString()});persist();return refresh(false);
+ }
+ if(d.provider!=='Modrinth')throw Error('Неизвестный источник модов');
  const result=await dialog.showOpenDialog(win,{title:'Выберите папку mods нужного профиля Minecraft',properties:['openDirectory']});
  if(result.canceled)return null;
  const confirmation=await dialog.showMessageBox(win,{type:'warning',buttons:['Отмена','Установить'],defaultId:0,cancelId:0,title:'Установка мода',message:d.name,detail:'Папка: '+result.filePaths[0]+'\nЗакройте Minecraft. Устанавливайте только доверенные моды. Убедитесь, что версия игры, загрузчик и зависимости подходят. Nexora не проверяет мод на вредоносный код.'});
@@ -103,9 +112,9 @@ safeHandler('manager:install',id=>exclusive(async()=>{
 safeHandler('manager:toggle',(id,enabled)=>exclusive(async()=>{
  if(typeof enabled!=='boolean')throw Error('Некорректное действие');
  const m=state.installedMods.find(x=>x.id===id);if(!m)throw Error('Мод не управляется Nexora');
- const confirm=await dialog.showMessageBox(win,{type:'question',buttons:['Отмена',enabled?'Включить':'Отключить'],defaultId:0,cancelId:0,message:m.name,detail:'Перед изменением закройте Minecraft. Файл будет переименован без перезаписи других модов.'});
+ const confirm=await dialog.showMessageBox(win,{type:'question',buttons:['Отмена',enabled?'Включить':'Отключить'],defaultId:0,cancelId:0,message:m.name,detail:m.provider==='Thunderstore'?'Закройте игру. Папка плагина будет перемещена без перезаписи других модов.':'Перед изменением закройте Minecraft. Файл будет переименован без перезаписи других модов.'});
  if(confirm.response!==1)return null;
- await manager.toggle(m,enabled);return refresh();
+ if(m.provider==='Thunderstore')await pluginBridge.request('plugin-toggle',{folder:m.folder,package:m.project,enabled});else await manager.toggle(m,enabled);return refresh(false);
 }));
 safeHandler('manager:folder',async id=>{const m=state.installedMods.find(x=>x.id===id);if(!m)throw Error('Мод не найден');const e=await shell.openPath(m.folder);if(e)throw Error(e);return true});
 safeHandler('performance:sample',()=>monitor.sample());
@@ -149,7 +158,7 @@ safeHandler('translation:start',async value=>{
 });
 safeHandler('translation:stop',()=>translation.stop());
 let quitting=false;
-app.on('before-quit',e=>{if(!quitting&&tracker?.state().active){e.preventDefault();quitting=true;const deadline=setTimeout(()=>app.quit(),6000);tracker.shutdown().catch(()=>{}).finally(()=>{clearTimeout(deadline);app.quit()});return}bridge.close();overlay?.close();translation?.stop();localModel?.cancel();localModel?.close()});
+app.on('before-quit',e=>{if(!quitting&&tracker?.state().active){e.preventDefault();quitting=true;const deadline=setTimeout(()=>app.quit(),6000);tracker.shutdown().catch(()=>{}).finally(()=>{clearTimeout(deadline);app.quit()});return}bridge.close();pluginBridge.close();overlay?.close();translation?.stop();localModel?.cancel();localModel?.close()});
 
 app.on('second-instance',()=>{if(win&&!win.isDestroyed()){if(win.isMinimized())win.restore();win.show();win.focus()}});
 app.whenReady().then(()=>{configureScratch(app.getPath('userData'));load();tracker=createTracker({bridge:playBridge,monitor,getHistory:()=>state.playSessions,saveHistory:rows=>{state.playSessions=rows;persist()},send:value=>{if(win&&!win.isDestroyed())win.webContents.send('play:changed',value)}});session.defaultSession.setPermissionRequestHandler((_wc,_permission,cb)=>cb(false));win=new BrowserWindow({width:1280,height:850,minWidth:780,minHeight:620,backgroundColor:'#14151c',autoHideMenuBar:true,title:'Nexora',webPreferences:{preload:path.join(__dirname,'preload.cjs'),contextIsolation:true,nodeIntegration:false,sandbox:true}});win.webContents.setWindowOpenHandler(()=>({action:'deny'}));win.webContents.on('will-navigate',e=>e.preventDefault());overlay=createOverlay({BrowserWindow,screen,globalShortcut,ipcMain,monitor,dir:__dirname,onChange:value=>{if(win&&!win.isDestroyed())win.webContents.send('hud:changed',value)}});localModel=createLocalModel(path.join(app.getPath('userData'),'translation-models'),value=>{if(win&&!win.isDestroyed())win.webContents.send('translation:model-changed',value)});translation=createTranslation({localModel,BrowserWindow,screen,desktopCapturer,globalShortcut,ipcMain,main:win,dir:__dirname,onChange:value=>{if(win&&!win.isDestroyed())win.webContents.send('translation:changed',value)}});win.on('closed',()=>{overlay.close();translation.stop();app.quit()});win.loadFile('index.html')});
