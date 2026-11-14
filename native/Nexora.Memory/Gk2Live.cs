@@ -6,6 +6,7 @@ internal sealed class Gk2Live : IDisposable
     private ProcessMemory? mem; private GameResLocator? locator;
     private readonly Dictionary<string,(float value,long until)> holds=new();
     private int pid;private long nextTick;private string warning="";
+    private readonly Dictionary<string,(long address,string id,int count,long anchor,long inventory)> stackHandles=new();
     internal static bool Valid(string key,double value)=>Labels.ContainsKey(key)&&double.IsFinite(value)&&value>=0&&value<=1000000&&(!key.StartsWith("tech_")||value==Math.Truncate(value));
     private static Exception Invalid()=>new("Не удалось подтвердить текущий игровой мир. Подключитесь заново после загрузки сохранения.");
     internal object Start(string root,bool exact)
@@ -58,8 +59,34 @@ internal sealed class Gk2Live : IDisposable
         if(locator.CurrentPlayerData!=anchor||locator.PlayerInventory!=inv||!locator.IsSameSaveSlot()||!locator.IsInGameSession())throw Invalid();
         return rows.Where(x=>x.Count>0&&x.ItemId!=null&&x.ItemId.Length<=160&&x.ItemId.All(c=>!char.IsControl(c))).ToList();
     }
-    internal object Inventory(){
-        var rows=InventoryRows();var resources=Read();return new{connected=true,pid,warning,fields=resources.Select(x=>new{key=x.Key,label=Labels[x.Key],value=x.Value.Value,held=holds.ContainsKey(x.Key),target=holds.TryGetValue(x.Key,out var h)?(float?)h.value:null}).ToArray(),items=rows.GroupBy(x=>x.ItemId,StringComparer.Ordinal).Select(g=>new{id=g.Key,name=g.Key.Replace('_',' '),count=g.Sum(x=>(long)x.Count),stacks=g.Count()}).ToArray(),inventoryMessage="Названия взяты из игровых ID. Стопки с одинаковым ID не изменяются."};
+    internal object Inventory(string message="")
+    {
+        var rows=InventoryRows();var resources=Read();stackHandles.Clear();
+        if(locator==null)throw Invalid();
+        long anchor=locator.CurrentPlayerData,inventory=locator.PlayerInventory;
+        if(!locator.IsSameSaveSlot()||!locator.IsInGameSession())throw Invalid();
+        var items=rows.GroupBy(x=>x.ItemId,StringComparer.Ordinal).Select(g=>{
+            var stacks=g.Select((x,i)=>{
+                string token=Guid.NewGuid().ToString("N");
+                stackHandles[token]=(x.Address,x.ItemId,x.Count,anchor,inventory);
+                return new{token,number=i+1,count=x.Count};
+            }).ToArray();
+            return new{id=g.Key,name=g.Key.Replace('_',' '),count=g.Sum(x=>(long)x.Count),stacks=stacks.Length,slots=stacks};
+        }).ToArray();
+        return new{connected=true,pid,warning,fields=resources.Select(x=>new{key=x.Key,label=Labels[x.Key],value=x.Value.Value,held=holds.ContainsKey(x.Key),target=holds.TryGetValue(x.Key,out var h)?(float?)h.value:null}).ToArray(),items,inventoryMessage=message};
+    }
+    internal object Stack(string token,int count,int expected)
+    {
+        if(count<1||count>999||expected<1||token.Length!=32)throw new Exception("Недопустимое количество.");
+        if(!stackHandles.TryGetValue(token,out var handle)||handle.count!=expected)
+            return Inventory("Список стопок устарел. Обновлено без изменений.");
+        var rows=InventoryRows();
+        if(locator==null||mem==null||locator.CurrentPlayerData!=handle.anchor||locator.PlayerInventory!=handle.inventory||!locator.IsSameSaveSlot()||!locator.IsInGameSession())throw Invalid();
+        var matches=rows.Where(x=>x.Address==handle.address&&x.ItemId==handle.id&&x.Count==handle.count).ToArray();
+        if(matches.Length!=1)return Inventory("Стопка изменилась. Обновлено без изменений.");
+        // Only an existing stack from the latest snapshot; opaque references never expose addresses.
+        if(!locator.IsAnchorStillValid()||!locator.IsSameSaveSlot()||!locator.IsInGameSession()||!locator.WriteItemCount(handle.address,handle.id,count))throw Invalid();
+        return Inventory("Количество проверено после записи.");
     }
     internal object Item(string id,int count,int expected){
         if(count<1||count>999||expected<1||id.Length>160)throw new Exception("Недопустимое количество.");
@@ -76,5 +103,5 @@ internal sealed class Gk2Live : IDisposable
             if(holds.Count==0)return;var rows=Read();foreach(var (key,hold) in holds){if(!rows.TryGetValue(key,out var atom))throw Invalid();if(atom.Value!=hold.value)Write(atom,hold.value);}
         }catch{warning="Автофиксация остановлена: структура игры изменилась.";Dispose();}
     }
-    public void Dispose(){holds.Clear();locator=null;mem?.Dispose();mem=null;pid=0;}
+    public void Dispose(){stackHandles.Clear();holds.Clear();locator=null;mem?.Dispose();mem=null;pid=0;}
 }

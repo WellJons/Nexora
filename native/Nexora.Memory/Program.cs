@@ -275,6 +275,7 @@ internal static class Program
                 "gk2-state"=>gk2.Snapshot(),
                 "gk2-set"=>gk2.Change(S(j,"key"),N(j,"value"),j.GetProperty("hold").GetBoolean()),
                 "gk2-inventory"=>gk2.Inventory(),
+                "gk2-stack"=>gk2.Stack(S(j,"token"),j.GetProperty("count").GetInt32(),j.GetProperty("expected").GetInt32()),
                 "gk2-item"=>gk2.Item(S(j,"id"),j.GetProperty("count").GetInt32(),j.GetProperty("expected").GetInt32()),
                 "gk2-release"=>gk2.Release(S(j,"key")),
                 "console-send"=>ConsoleInput.Send(S(j,"root"),j.GetProperty("exact").GetBoolean(),S(j,"profile"),S(j,"command")),
