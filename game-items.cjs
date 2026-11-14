@@ -10,5 +10,6 @@ const categories={currency:'Валюта',tools:'Инструменты',materia
 function listItems(game){if(!Object.hasOwn(rows,game))throw Error('Игра не поддерживается');return rows[game].map(([id,ru,en,category])=>({id,ru,en,category,label:categories[category]}))}
 function spawnCommand(game,id,count,player=null){if(!Number.isSafeInteger(count)||count<1||count>1000)throw Error('Количество: 1–1000');if(!listItems(game).some(x=>x.id===id))throw Error('Предмет не найден');if(game==='minecraft'){if(player!==null&&!/^[A-Za-z0-9_]{1,16}$/.test(player))throw Error('Неверное имя игрока');return (player===null?'/':'')+'give '+(player||'@s')+' minecraft:'+id+' '+count}return 'player.additem '+id+' '+count}
 function norm(v){return String(v||'').normalize('NFKC').toLowerCase().replaceAll('ё','е').trim()}
-function searchItems(game,q,cat='all'){const terms=norm(q).split(/\s+/).filter(Boolean);return listItems(game).filter(x=>(cat==='all'||x.category===cat)&&terms.every(t=>norm(x.ru+' '+x.en+' '+x.id+' '+x.label).includes(t)))}
+const aliases={'0005ACE4':'железо','iron_ingot':'железо','diamond':'алмазы бриллиант','00023736':'стимпак стимпакет','001BF72E':'адгезив','gold_ingot':'золото'};
+function searchItems(game,q,cat='all'){const terms=norm(q).split(/\s+/).filter(Boolean);return listItems(game).filter(x=>(cat==='all'||x.category===cat)&&terms.every(t=>norm(x.ru+' '+x.en+' '+x.id+' '+x.label+' '+(aliases[x.id]||'')).includes(t)))}
 module.exports={categories,listItems,searchItems,spawnCommand};

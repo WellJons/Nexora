@@ -269,6 +269,7 @@ internal static class Program
             if(line.Length>32768)throw new Exception("Request too large.");
             using var doc=JsonDocument.Parse(line);var j=doc.RootElement;
             object? data=S(j,"op") switch {
+                "console-send"=>ConsoleInput.Send(S(j,"root"),j.GetProperty("exact").GetBoolean(),S(j,"profile"),S(j,"command")),
                 "window-info"=>WindowInfo.Get(S(j,"handle")),
                 "plugin-install"=>PluginArchive.Install(S(j,"archive"),S(j,"sha256"),j.GetProperty("size").GetInt64(),S(j,"folder"),S(j,"package")),
                 "plugin-status"=>PluginArchive.Status(S(j,"folder"),S(j,"package")),
