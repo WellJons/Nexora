@@ -95,7 +95,7 @@ internal sealed class Scanner : IDisposable
     }
     internal object Scan(string type,double value)
     {
-        Require();int bits=Encode(type,value);kind=type;hits.Clear();scanned=false;limited=false;readBytes=0;
+        Require();int bits=Encode(type,value);if(watches.Values.Any(w=>w.Frozen)){foreach(var a in watches.Keys.ToArray())watches[a]=watches[a] with{Frozen=false,Expires=0};watchMessage="Freeze stopped for a new search.";}kind=type;hits.Clear();scanned=false;limited=false;readBytes=0;
         var buffer=new byte[Chunk];long cursor=0;const long top=0x00007ffffffeffffL;
         while(cursor<top&&Win.Query(handle,cursor,out var page))
         {
@@ -199,6 +199,25 @@ internal sealed class Scanner : IDisposable
         WriteBits(a,bits);
         return Results();
     }
+    internal static bool SelfTestWatch()
+    {
+        using var test=new Scanner();
+        nint ptr=Marshal.AllocHGlobal(4);
+        try{
+            test.handle=Win.OpenProcess(Win.QueryReadWrite,false,Environment.ProcessId);
+            if(test.handle==0)return false;
+            Marshal.WriteInt32(ptr,13);test.hits.Add((long)ptr);test.scanned=true;
+            string address=((long)ptr).ToString("X");
+            test.Pin(address,"test");
+            test.SetWatch(address,42,true);
+            if(Marshal.ReadInt32(ptr)!=42)return false;
+            Marshal.WriteInt32(ptr,7);test.Tick();
+            if(Marshal.ReadInt32(ptr)!=42)return false;
+            test.StopWatch(address);Marshal.WriteInt32(ptr,8);test.nextTick=0;test.Tick();
+            if(Marshal.ReadInt32(ptr)!=8)return false;
+            test.RemoveWatch(address);return test.watches.Count==0;
+        }finally{test.Dispose();Marshal.FreeHGlobal(ptr);}
+    }
     public void Dispose(){if(handle!=0)Win.CloseHandle(handle);handle=0;pid=0;hits.Clear();watches.Clear();watchMessage="";scanned=false;limited=false;readBytes=0;}
 }
 
@@ -215,11 +234,12 @@ internal static class Program
             if(Scanner.Match(@"C:\games2\test.exe",@"C:\games",false)||!Scanner.Match(@"C:\games\test.exe",@"C:\games",false)||Scanner.Match(@"C:\games\EasyAntiCheat.exe",@"C:\games",false))return 5;
             nint ptr=Marshal.AllocHGlobal(4),h=Win.OpenProcess(Win.QueryReadWrite,false,Environment.ProcessId);
             try{if(h==0)return 6;Marshal.WriteInt32(ptr,13);var b=new byte[4];if(!Win.ReadProcessMemory(h,ptr,b,4,out var r)||r!=4||BitConverter.ToInt32(b)!=13)return 7;if(!Win.WriteProcessMemory(h,ptr,BitConverter.GetBytes(42),4,out var w)||w!=4||Marshal.ReadInt32(ptr)!=42)return 8;}finally{if(h!=0)Win.CloseHandle(h);Marshal.FreeHGlobal(ptr);}
+            if(!Scanner.SelfTestWatch())return 9;
             Console.WriteLine("Nexora native self-test passed.");return 0;
         }
         using var scanner=new Scanner();
         while(true){
-            var input=Console.In.ReadLineAsync();
+            var input=Task.Run(()=>Console.ReadLine());
             while(!input.Wait(400))scanner.Tick();
             string? line=input.GetAwaiter().GetResult();
             if(line==null)break;
