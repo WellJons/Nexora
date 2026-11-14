@@ -1,5 +1,5 @@
-name: Checks
-on: [push, pull_request]
+name: Checks and Windows build
+on: [push, pull_request, workflow_dispatch]
 permissions:
   contents: read
 jobs:
@@ -12,3 +12,23 @@ jobs:
           node-version: '24'
       - run: npm run check
       - run: npm test
+  windows:
+    runs-on: windows-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm install --no-audit --no-fund
+      - run: npm run package:win
+      - name: Verify bundle
+        shell: pwsh
+        run: |
+          if (!(Test-Path dist/Nexora-win32-x64/Nexora.exe)) { throw 'Executable missing' }
+          if (!(Test-Path dist/Nexora-win32-x64/resources/app/node_modules/systeminformation/package.json)) { throw 'Runtime dependency missing' }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Nexora-Windows-x64
+          path: dist/Nexora-win32-x64/
+          if-no-files-found: error

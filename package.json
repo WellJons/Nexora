@@ -1,16 +1,24 @@
 {
   "name": "nexora",
   "productName": "Nexora",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "private": true,
   "description": "Personal single-player game companion",
   "main": "main.cjs",
   "scripts": {
     "start": "electron .",
     "test": "node --test",
-    "check": "node --check main.cjs && node --check preload.cjs && node --check renderer.js && node --check mods.cjs && node --check core.cjs && node --check manager.cjs"
+    "check": "node --check main.cjs && node --check preload.cjs && node --check renderer.js && node --check mods.cjs && node --check core.cjs && node --check manager.cjs && node --check performance.cjs",
+    "package:win": "electron-packager . Nexora --platform=win32 --arch=x64 --out=dist --overwrite --ignore=^/test --ignore=^/\\.github --ignore=^/dist"
   },
   "devDependencies": {
-    "electron": "45.3.2"
+    "electron": "45.3.2",
+    "@electron/packager": "20.3.0"
+  },
+  "dependencies": {
+    "systeminformation": "5.33.22"
+  },
+  "engines": {
+    "node": ">=22.12.0"
   }
 }

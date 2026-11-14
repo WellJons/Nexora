@@ -5,6 +5,8 @@ const {randomUUID}=require('node:crypto');
 const {discoverSteam,mergeGames,copySave}=require('./core.cjs');
 const mods=require('./mods.cjs');
 const manager=require('./manager.cjs');
+const {makeMonitor}=require('./performance.cjs');
+const monitor=makeMonitor(require('systeminformation'));
 let managerBusy=false;
 async function exclusive(fn){if(managerBusy)throw Error('Дождитесь завершения другой операции с модами');managerBusy=true;try{return await fn()}finally{managerBusy=false}}
 let win,state={manual:[],favorites:[],history:[],backups:[],downloads:[],installedMods:[]},games=[];
@@ -56,5 +58,6 @@ safeHandler('manager:toggle',(id,enabled)=>exclusive(async()=>{
  await manager.toggle(m,enabled);return refresh();
 }));
 safeHandler('manager:folder',async id=>{const m=state.installedMods.find(x=>x.id===id);if(!m)throw Error('Мод не найден');const e=await shell.openPath(m.folder);if(e)throw Error(e);return true});
+safeHandler('performance:sample',()=>monitor.sample());
 app.whenReady().then(()=>{load();session.defaultSession.setPermissionRequestHandler((_wc,_permission,cb)=>cb(false));win=new BrowserWindow({width:1280,height:850,minWidth:780,minHeight:620,backgroundColor:'#14151c',autoHideMenuBar:true,title:'Nexora',webPreferences:{preload:path.join(__dirname,'preload.cjs'),contextIsolation:true,nodeIntegration:false,sandbox:true}});win.webContents.setWindowOpenHandler(()=>({action:'deny'}));win.webContents.on('will-navigate',e=>e.preventDefault());win.loadFile('index.html')});
 app.on('window-all-closed',()=>app.quit());

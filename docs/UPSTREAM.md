@@ -10,3 +10,11 @@ We use the public Modrinth API rather than reimplementing a mod catalogue. No ex
 | [Modrinth](https://github.com/modrinth/code) | Mixed/NOASSERTION | Public API integration; review component licenses if copying source. |
 
 Before incorporating upstream code, check its exact license and compatibility, preserve required notices and meet source disclosure obligations where applicable. API integrations must respect provider access and terms.
+
+## Integrated dependencies (0.4)
+
+- `systeminformation` (MIT): runtime hardware metrics. Original license distributed in its installed package.
+- `@electron/packager` (BSD-2-Clause): build-time Windows packaging; original license in its npm package.
+- `electron` (MIT and bundled third-party notices): desktop runtime. Packaged distribution retains Electron license files.
+
+Dependencies are used through their public APIs, not copied into application source.
