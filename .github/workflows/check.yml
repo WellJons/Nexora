@@ -12,6 +12,10 @@ jobs:
           node-version: '24'
       - run: npm run check
       - run: npm test
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - run: dotnet run --project native/Nexora.Memory/Nexora.Memory.csproj -c Release -- --self-test
   windows:
     runs-on: windows-latest
     needs: test
@@ -21,6 +25,10 @@ jobs:
         with:
           node-version: '24'
       - run: npm install --no-audit --no-fund
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - run: npm run trainer:build
       - run: npm run package:win
       - name: Verify bundle
         shell: pwsh
@@ -28,6 +36,8 @@ jobs:
           if (!(Test-Path dist/Nexora-win32-x64/Nexora.exe)) { throw 'Executable missing' }
           if (!(Test-Path dist/Nexora-win32-x64/resources/app/node_modules/systeminformation/package.json)) { throw 'Runtime dependency missing' }
           node -e "require('./dist/Nexora-win32-x64/resources/app/node_modules/systeminformation'); console.log('Runtime dependency loads')"
+          & ./dist/Nexora-win32-x64/resources/app/native-bin/Nexora.Memory.exe --self-test
+          if ($LASTEXITCODE -ne 0) { throw 'Native self-test failed' }
       - uses: actions/upload-artifact@v4
         with:
           name: Nexora-Windows-x64

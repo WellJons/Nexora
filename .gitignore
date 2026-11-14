@@ -2,3 +2,7 @@ node_modules/
 dist/
 *.log
 .env
+
+native-bin/
+native/**/bin/
+native/**/obj/

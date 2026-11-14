@@ -1,0 +1,173 @@
+using System.Diagnostics;
+using System.Runtime.InteropServices;
+using System.Text.Json;
+using System.Text;
+using System.Buffers.Binary;
+
+internal static class Win
+{
+    internal const uint QueryReadWrite = 0x0400 | 0x0010 | 0x0020 | 0x0008;
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct Region
+    {
+        public nint BaseAddress, AllocationBase;
+        public uint AllocationProtect;
+        public ushort PartitionId;
+        public nuint RegionSize;
+        public uint State, Protect, Type;
+    }
+    [DllImport("kernel32.dll", SetLastError=true)] internal static extern nint OpenProcess(uint access, bool inherit, int pid);
+    [DllImport("kernel32.dll", SetLastError=true)] [return:MarshalAs(UnmanagedType.Bool)] internal static extern bool CloseHandle(nint handle);
+    [DllImport("kernel32.dll", SetLastError=true)] internal static extern nuint VirtualQueryEx(nint handle, nint address, out Region region, nuint length);
+    [DllImport("kernel32.dll", SetLastError=true)] [return:MarshalAs(UnmanagedType.Bool)] internal static extern bool ReadProcessMemory(nint handle, nint address, [Out] byte[] buffer, nuint size, out nuint read);
+    [DllImport("kernel32.dll", SetLastError=true)] [return:MarshalAs(UnmanagedType.Bool)] internal static extern bool WriteProcessMemory(nint handle, nint address, byte[] buffer, nuint size, out nuint written);
+    [DllImport("kernel32.dll", SetLastError=true, CharSet=CharSet.Unicode)] [return:MarshalAs(UnmanagedType.Bool)] internal static extern bool QueryFullProcessImageName(nint handle, uint flags, StringBuilder path, ref uint length);
+    internal static bool Writable(Region r) => r.State==0x1000 && r.Type==0x20000 && (r.Protect & 0x100)==0 && (r.Protect & 0xff)==0x04;
+    internal static bool Query(nint h, long a, out Region r) => VirtualQueryEx(h,(nint)a,out r,(nuint)Marshal.SizeOf<Region>())!=0;
+    internal static string Image(nint h) { var s=new StringBuilder(32768);uint n=(uint)s.Capacity;if(!QueryFullProcessImageName(h,0,s,ref n))throw new Exception("Cannot verify game executable.");return s.ToString(); }
+}
+
+internal sealed class Scanner : IDisposable
+{
+    private const int HitLimit=50000, Chunk=1024*1024;
+    private const long ByteLimit=512L*1024*1024;
+    private nint handle;
+    private readonly List<long> hits=new();
+    private string kind="int32";
+    private bool scanned, limited;
+    private long readBytes;
+    private int pid;
+    private static readonly string[] BlockNames={"anticheat","anti-cheat","easyanticheat","battleye","beservice","vgc","vgk","start_protected_game","lsass","csrss","winlogon","services","svchost"};
+    internal static bool Match(string image,string root,bool exact)
+    {
+        try {
+            string p=Path.GetFullPath(image),r=Path.GetFullPath(root);
+            if(!p.EndsWith(".exe",StringComparison.OrdinalIgnoreCase)||BlockNames.Any(s=>Path.GetFileNameWithoutExtension(p).Contains(s,StringComparison.OrdinalIgnoreCase)))return false;
+            return exact?string.Equals(p,r,StringComparison.OrdinalIgnoreCase):p.StartsWith(Path.TrimEndingDirectorySeparator(r)+Path.DirectorySeparatorChar,StringComparison.OrdinalIgnoreCase);
+        } catch{return false;}
+    }
+    internal static object[] Processes(string root,bool exact)
+    {
+        var result=new List<object>();
+        foreach(var p in Process.GetProcesses()) using(p) {try{
+            string? image=p.MainModule?.FileName;
+            if(image!=null&&p.Id!=Environment.ProcessId&&Match(image,root,exact))result.Add(new{pid=p.Id,name=p.ProcessName,image});
+        }catch{}}
+        return result.ToArray();
+    }
+    internal object Attach(int id,string root,bool exact)
+    {
+        Dispose();
+        if(id<=4||id==Environment.ProcessId)throw new Exception("Select a running game.");
+        using var p=Process.GetProcessById(id);
+        string image=p.MainModule?.FileName??"";
+        if(!Match(image,root,exact))throw new Exception("Process is outside the selected game's installation.");
+        var h=Win.OpenProcess(Win.QueryReadWrite,false,id);
+        if(h==0)throw new Exception("Windows denied access. Protected processes are not supported.");
+        try{if(!Match(Win.Image(h),root,exact))throw new Exception("Process identity changed.");handle=h;pid=id;return new{pid=id,name=p.ProcessName};}
+        catch{Win.CloseHandle(h);throw;}
+    }
+    private void Require(){if(handle==0)throw new Exception("No game session. Select a running game.");}
+    internal static int Encode(string type,double v){
+        if(!double.IsFinite(v))throw new Exception("Value must be finite.");
+        return type switch {
+            "int32" when v>=int.MinValue&&v<=int.MaxValue&&Math.Truncate(v)==v => (int)v,
+            "float32" when v>=-float.MaxValue&&v<=float.MaxValue => BitConverter.SingleToInt32Bits((float)v),
+            _ => throw new Exception("Value does not fit the selected type.")
+        };
+    }
+    private bool Read(long address,out int bits)
+    {
+        bits=0;
+        if(!Win.Query(handle,address,out var r)||!Win.Writable(r)||address<(long)r.BaseAddress||address-(long)r.BaseAddress>(long)r.RegionSize-4)return false;
+        var b=new byte[4];if(!Win.ReadProcessMemory(handle,(nint)address,b,4,out var n)||n!=4)return false;
+        bits=BinaryPrimitives.ReadInt32LittleEndian(b);return true;
+    }
+    internal static void Collect(byte[] buffer,int length,long start,int bits,List<long> result,int limit)
+    {
+        for(int i=0;i<=length-4&&result.Count<limit;i+=4)
+            if(BinaryPrimitives.ReadInt32LittleEndian(buffer.AsSpan(i,4))==bits)result.Add(start+i);
+    }
+    internal object Scan(string type,double value)
+    {
+        Require();int bits=Encode(type,value);kind=type;hits.Clear();scanned=false;limited=false;readBytes=0;
+        var buffer=new byte[Chunk];long cursor=0;const long top=0x00007ffffffeffffL;
+        while(cursor<top&&Win.Query(handle,cursor,out var page))
+        {
+            long start=(long)page.BaseAddress,len=(long)page.RegionSize;
+            if(len<=0||start<0||len>long.MaxValue-start||start+len<=cursor)break;
+            cursor=start+len;
+            if(!Win.Writable(page))continue;
+            for(long offset=0;offset+4<=len;){
+                if(readBytes>=ByteLimit||hits.Count>=HitLimit){limited=true;break;}
+                int count=(int)Math.Min(Math.Min(Chunk,len-offset),ByteLimit-readBytes);count-=count%4;if(count<4){limited=true;break;}
+                readBytes+=count;
+                Win.ReadProcessMemory(handle,(nint)(start+offset),buffer,(nuint)count,out var got);
+                int actual=(int)Math.Min((ulong)got,(ulong)count);Collect(buffer,actual,start+offset,bits,hits,HitLimit);
+                offset+=count;
+                if(hits.Count>=HitLimit){limited=true;break;}
+            }
+            if(limited)break;
+        }
+        scanned=true;return Results();
+    }
+    internal object Refine(double value)
+    {
+        Require();if(!scanned)throw new Exception("Perform the first scan.");
+        int bits=Encode(kind,value);hits.RemoveAll(a=>!Read(a,out var b)||b!=bits);return Results();
+    }
+    internal object Results()
+    {
+        Require();var rows=new List<object>();
+        foreach(long a in hits.Take(100)){if(Read(a,out var bits)){
+            double v=kind=="int32"?bits:BitConverter.Int32BitsToSingle(bits);
+            rows.Add(new {address=a.ToString("X"),value=double.IsFinite(v)?(double?)v:null});
+        }}
+        return new{pid,kind,total=hits.Count,limited,readBytes,rows,scanned};
+    }
+    internal object Write(string address,double value)
+    {
+        Require();if(!long.TryParse(address,System.Globalization.NumberStyles.HexNumber,null,out var a)||!hits.Contains(a)||!hits.Take(100).Contains(a))throw new Exception("Choose an address from the displayed results.");
+        int bits=Encode(kind,value);if(!Read(a,out _))throw new Exception("The value is no longer accessible.");
+        byte[] b=new byte[4];BinaryPrimitives.WriteInt32LittleEndian(b,bits);
+        if(!Win.WriteProcessMemory(handle,(nint)a,b,4,out var n)||n!=4||!Read(a,out var actual)||actual!=bits)throw new Exception("The game did not retain the value.");
+        return Results();
+    }
+    public void Dispose(){if(handle!=0)Win.CloseHandle(handle);handle=0;pid=0;hits.Clear();scanned=false;limited=false;readBytes=0;}
+}
+
+internal static class Program
+{
+    private static string S(JsonElement j,string key)=>j.GetProperty(key).GetString()??throw new Exception("Missing "+key);
+    private static double N(JsonElement j,string key)=>j.GetProperty(key).GetDouble();
+    private static int Main(string[] args)
+    {
+        if(!OperatingSystem.IsWindows()||!Environment.Is64BitProcess)return 2;
+        if(args.Length==1&&args[0]=="--self-test"){
+            if(Marshal.SizeOf<Win.Region>()!=48||Scanner.Encode("float32",1.5)!=BitConverter.SingleToInt32Bits(1.5f))return 3;
+            var buffer=new byte[12];BinaryPrimitives.WriteInt32LittleEndian(buffer.AsSpan(4),123456);var list=new List<long>();Scanner.Collect(buffer,12,100,123456,list,10);if(list.Count!=1||list[0]!=104)return 4;
+            if(Scanner.Match(@"C:\games2\test.exe",@"C:\games",false)||!Scanner.Match(@"C:\games\test.exe",@"C:\games",false)||Scanner.Match(@"C:\games\EasyAntiCheat.exe",@"C:\games",false))return 5;
+            nint ptr=Marshal.AllocHGlobal(4),h=Win.OpenProcess(Win.QueryReadWrite,false,Environment.ProcessId);
+            try{if(h==0)return 6;Marshal.WriteInt32(ptr,13);var b=new byte[4];if(!Win.ReadProcessMemory(h,ptr,b,4,out var r)||r!=4||BitConverter.ToInt32(b)!=13)return 7;if(!Win.WriteProcessMemory(h,ptr,BitConverter.GetBytes(42),4,out var w)||w!=4||Marshal.ReadInt32(ptr)!=42)return 8;}finally{if(h!=0)Win.CloseHandle(h);Marshal.FreeHGlobal(ptr);}
+            Console.WriteLine("Nexora native self-test passed.");return 0;
+        }
+        using var scanner=new Scanner();
+        while(Console.ReadLine() is string line){try{
+            if(line.Length>32768)throw new Exception("Request too large.");
+            using var doc=JsonDocument.Parse(line);var j=doc.RootElement;
+            object? data=S(j,"op") switch {
+                "list"=>Scanner.Processes(S(j,"root"),j.GetProperty("exact").GetBoolean()),
+                "attach"=>scanner.Attach(j.GetProperty("pid").GetInt32(),S(j,"root"),j.GetProperty("exact").GetBoolean()),
+                "scan"=>scanner.Scan(S(j,"kind"),N(j,"value")),
+                "refine"=>scanner.Refine(N(j,"value")),
+                "results"=>scanner.Results(),
+                "write"=>scanner.Write(S(j,"address"),N(j,"value")),
+                "detach"=>Detach(scanner),
+                _=>throw new Exception("Unknown operation.")
+            };
+            Console.WriteLine(JsonSerializer.Serialize(new{ok=true,data}));
+        }catch(Exception e){Console.WriteLine(JsonSerializer.Serialize(new{ok=false,error=e.Message}));}}
+        return 0;
+    }
+    private static object Detach(Scanner s){s.Dispose();return new{detached=true};}
+}

@@ -8,13 +8,15 @@ const manager=require('./manager.cjs');
 const {makeMonitor}=require('./performance.cjs');
 const monitor=makeMonitor(require('systeminformation'));
 const {discoverEpic,epicUri,normalizeProfile,recordLaunch}=require('./library.cjs');
-const trainer=require('./trainer-tools.cjs');
+const {gameScope,createBridge,numeric}=require('./memory-bridge.cjs');
+const bridge=createBridge(path.join(__dirname,'native-bin','Nexora.Memory.exe'));
+let activeGame=null;
 const vault=require('./save-vault.cjs');
 let saveBusy=false;
 async function saveExclusive(fn){if(saveBusy)throw Error('Дождитесь завершения операции с сохранениями');saveBusy=true;try{return await fn()}finally{saveBusy=false}}
 let managerBusy=false;
 async function exclusive(fn){if(managerBusy)throw Error('Дождитесь завершения другой операции с модами');managerBusy=true;try{return await fn()}finally{managerBusy=false}}
-let win,state={manual:[],favorites:[],history:[],backups:[],downloads:[],installedMods:[],profiles:[],launchLog:[],engines:[],tables:[]},games=[];
+let win,state={manual:[],favorites:[],history:[],backups:[],downloads:[],installedMods:[],profiles:[],launchLog:[],},games=[];
 const config=()=>path.join(app.getPath('userData'),'library.json');
 function persist(){const p=config();fs.mkdirSync(path.dirname(p),{recursive:true});fs.writeFileSync(p+'.tmp',JSON.stringify(state,null,2));fs.renameSync(p+'.tmp',p)}
 function load(){try{const v=JSON.parse(fs.readFileSync(config(),'utf8'));for(const key of Object.keys(state))if(Array.isArray(v[key]))state[key]=v[key]}catch{}}
@@ -24,7 +26,7 @@ function steamRoots(){
  try{const out=execFileSync('reg.exe',['query','HKCU\\Software\\Valve\\Steam','/v','SteamPath'],{encoding:'utf8',windowsHide:true,timeout:3000});const m=out.match(/REG_SZ\s+(.+)/i);if(m)roots.unshift(m[1].trim())}catch{}
  return [...new Set(roots)];
 }
-function refresh(scan=true){if(scan){const all=steamRoots().flatMap(discoverSteam);if(process.platform==='win32'&&process.env.ProgramData)all.push(...discoverEpic(path.join(process.env.ProgramData,'Epic','EpicGamesLauncher','Data','Manifests')));const manual=state.manual.map(g=>({...g,installed:typeof g.path==='string'&&fs.existsSync(g.path)}));games=mergeGames(all,manual)}return {games,favorites:state.favorites,history:state.history,backups:state.backups,downloads:state.downloads,installedMods:state.installedMods,profiles:state.profiles,launchLog:state.launchLog,engines:state.engines,tables:state.tables}}
+function refresh(scan=true){if(scan){const all=steamRoots().flatMap(discoverSteam);if(process.platform==='win32'&&process.env.ProgramData)all.push(...discoverEpic(path.join(process.env.ProgramData,'Epic','EpicGamesLauncher','Data','Manifests')));const manual=state.manual.map(g=>({...g,installed:typeof g.path==='string'&&fs.existsSync(g.path)}));games=mergeGames(all,manual)}return {games,favorites:state.favorites,history:state.history,backups:state.backups,downloads:state.downloads,installedMods:state.installedMods,profiles:state.profiles,launchLog:state.launchLog}}
 function safeHandler(name,fn){ipcMain.handle(name,async(e,...args)=>{if(!win||e.sender!==win.webContents||e.senderFrame!==win.webContents.mainFrame)throw Error('Invalid origin');return fn(...args)})}
 safeHandler('library:list',refresh);
 safeHandler('library:add',async()=>{const r=await dialog.showOpenDialog(win,{properties:['openFile'],filters:[{name:'Windows game',extensions:['exe']}]});if(r.canceled)return refresh();const p=r.filePaths[0];if(path.extname(p).toLowerCase()!=='.exe')throw Error('Выберите EXE игры');if(!state.manual.some(g=>g.path===p)){state.manual.push({id:'local:'+randomUUID(),name:path.basename(p,'.exe'),path:p,installed:true,kind:'local'});persist()}return refresh()});
@@ -69,12 +71,21 @@ safeHandler('manager:folder',async id=>{const m=state.installedMods.find(x=>x.id
 safeHandler('performance:sample',()=>monitor.sample());
 safeHandler('profile:save',(id,value)=>{if(!games.some(g=>g.id===id))throw Error('Игра не найдена');const p=normalizeProfile(value);state.profiles=[{gameId:id,...p,updated:new Date().toISOString()},...state.profiles.filter(x=>x.gameId!==id)];persist();return refresh(false)});
 safeHandler('library:folder',async id=>{const g=games.find(x=>x.id===id&&x.installed);if(!g)throw Error('Игра не установлена');const folder=g.kind==='local'?path.dirname(g.path):g.path;const error=await shell.openPath(folder);if(error)throw Error(error);return true});
-safeHandler('trainer:engine',async kind=>{trainer.checkKind(kind);const r=await dialog.showOpenDialog(win,{title:'Выберите установленный EXE движка трейнеров',properties:['openFile'],filters:[{name:'Windows executable',extensions:['exe']}]});if(r.canceled)return null;const p=trainer.checkFile(r.filePaths[0],'.exe');state.engines=[...state.engines.filter(x=>x.kind!==kind),{kind,path:p}];persist();return refresh(false)});
-safeHandler('trainer:table',async id=>{if(!games.some(g=>g.id===id))throw Error('Выберите игру');const r=await dialog.showOpenDialog(win,{title:'Выберите доверенную таблицу Cheat Engine',properties:['openFile'],filters:[{name:'Cheat Engine table',extensions:['ct']}]});if(r.canceled)return null;const p=trainer.checkFile(r.filePaths[0],'.ct');if(!state.tables.some(t=>t.gameId===id&&t.path===p)){state.tables.push({id:randomUUID(),gameId:id,name:path.basename(p),path:p});persist()}return refresh(false)});
-safeHandler('trainer:remove',id=>{state.tables=state.tables.filter(t=>t.id!==id);persist();return refresh(false)});
-safeHandler('trainer:launch',async(kind,tableId)=>{const engine=state.engines.find(e=>e.kind===trainer.checkKind(kind));if(!engine)throw Error('Сначала настройте движок');const table=tableId?state.tables.find(t=>t.id===tableId):null;if(tableId&&!table)throw Error('Таблица не найдена');const spec=trainer.launchSpec(engine,table);
- const c=await dialog.showMessageBox(win,{type:'warning',title:'Внешний движок',message:table?'Открыть '+table.name+'?':'Запустить внешний инструмент?',detail:'Используйте только в одиночных играх без античита. Таблицы могут содержать исполняемые скрипты — открывайте только доверенные файлы. Nexora не проверяет их код.',buttons:['Отмена','Запустить'],defaultId:0,cancelId:0});
- if(c.response!==1)return false;await new Promise((resolve,reject)=>{const child=spawn(spec.executable,spec.args,{cwd:spec.cwd,detached:true,stdio:'ignore',windowsHide:false});child.once('error',reject);child.once('spawn',()=>{child.unref();resolve()})});return true});
-
+function scopeOf(id){return gameScope(games.find(g=>g.id===id))}
+function attached(){if(activeGame===null)throw Error('Выберите запущенную игру');}
+safeHandler('memory:list',id=>bridge.request('list',scopeOf(id)));
+safeHandler('memory:attach',async(id,pid)=>{
+ if(!Number.isSafeInteger(pid)||pid<=4)throw Error('Некорректный процесс');
+ const scope=scopeOf(id);
+ const c=await dialog.showMessageBox(win,{type:'warning',title:'Редактор игровых значений',message:'Открыть выбранную одиночную игру?',detail:'Используйте только в собственной одиночной игре без античита. Изменение памяти может привести к сбою или потере прогресса. Сделайте резервную копию.',buttons:['Отмена','Продолжить'],defaultId:0,cancelId:0});
+ if(c.response!==1)return null;
+ activeGame=null;bridge.close();const result=await bridge.request('attach',{...scope,pid});activeGame=id;return {...result,gameId:id};
+});
+safeHandler('memory:scan',(kind,value)=>{attached();if(!['int32','float32'].includes(kind))throw Error('Неизвестный тип');return bridge.request('scan',{kind,value:numeric(value)})});
+safeHandler('memory:refine',value=>{attached();return bridge.request('refine',{value:numeric(value)})});
+safeHandler('memory:results',()=>{attached();return bridge.request('results')});
+safeHandler('memory:write',(address,value)=>{attached();if(typeof address!=='string'||!/^[0-9A-F]{1,16}$/.test(address))throw Error('Неверный адрес');return bridge.request('write',{address,value:numeric(value)})});
+safeHandler('memory:detach',()=>{activeGame=null;bridge.close();return true});
+app.on('before-quit',()=>bridge.close());
 app.whenReady().then(()=>{load();session.defaultSession.setPermissionRequestHandler((_wc,_permission,cb)=>cb(false));win=new BrowserWindow({width:1280,height:850,minWidth:780,minHeight:620,backgroundColor:'#14151c',autoHideMenuBar:true,title:'Nexora',webPreferences:{preload:path.join(__dirname,'preload.cjs'),contextIsolation:true,nodeIntegration:false,sandbox:true}});win.webContents.setWindowOpenHandler(()=>({action:'deny'}));win.webContents.on('will-navigate',e=>e.preventDefault());win.loadFile('index.html')});
 app.on('window-all-closed',()=>app.quit());
