@@ -6,6 +6,8 @@ const {discoverSteam,mergeGames}=require('./core.cjs');
 const mods=require('./mods.cjs');
 const manager=require('./manager.cjs');
 const modPlan=require('./mod-plan.cjs');
+const thunder=require('./thunder.cjs').createThunder();
+let thunderBusy=false;
 let pendingModPlan=null;
 const {makeMonitor}=require('./performance.cjs');
 const monitor=makeMonitor(require('systeminformation'));
@@ -63,10 +65,19 @@ safeHandler('mods:install-plan',token=>exclusive(async()=>{
  const added=await modPlan.installPlan(mods,plan,r.filePaths[0],state.installedMods);state.installedMods.unshift(...added.map(x=>({...x,id:randomUUID(),date:new Date().toISOString()})));persist();return refresh(false);
 }));
 safeHandler('manager:check-update',async(id,game,loader)=>{const m=state.installedMods.find(x=>x.id===id);if(!m)throw Error('Мод не найден');return modPlan.checkUpdate(mods,m,game,loader)});
+safeHandler('thunder:search',(game,q,sort,page)=>thunder.search(game,q,sort,page));
+safeHandler('thunder:details',(game,id)=>thunder.details(game,id));
+safeHandler('thunder:download',async(game,id,version)=>{
+ if(thunderBusy)throw Error('Уже выполняется загрузка');thunderBusy=true;
+ try{const p=await thunder.details(game,id);if(!p.versions.some(v=>v.version===version))throw Error('Версия не найдена');
+ const r=await dialog.showSaveDialog(win,{title:'Сохранить архив мода',defaultPath:path.join(app.getPath('downloads'),p.id+'-'+version+'.zip'),filters:[{name:'ZIP',extensions:['zip']}]});if(r.canceled)return null;
+ const result=await thunder.download(game,id,version,r.filePath);state.downloads.unshift({id:randomUUID(),path:r.filePath,provider:'Thunderstore',project:id,version,date:new Date().toISOString(),...result});state.downloads=state.downloads.slice(0,100);persist();return refresh(false);
+ }finally{thunderBusy=false}
+});
 safeHandler('mods:show',id=>{const d=state.downloads.find(v=>v.id===id);if(!d)throw Error('Загрузка не найдена');shell.showItemInFolder(d.path);return true});
 safeHandler('manager:list',async()=>Promise.all(state.installedMods.map(async m=>({...m,status:await manager.status(m)}))));
 safeHandler('manager:install',id=>exclusive(async()=>{
- const d=state.downloads.find(x=>x.id===id);if(!d)throw Error('Сначала скачайте мод через Nexora');
+ const d=state.downloads.find(x=>x.id===id);if(!d||d.provider!=='Modrinth')throw Error('Автоустановка доступна только для JAR-файлов Modrinth');
  const result=await dialog.showOpenDialog(win,{title:'Выберите папку mods нужного профиля Minecraft',properties:['openDirectory']});
  if(result.canceled)return null;
  const confirmation=await dialog.showMessageBox(win,{type:'warning',buttons:['Отмена','Установить'],defaultId:0,cancelId:0,title:'Установка мода',message:d.name,detail:'Папка: '+result.filePaths[0]+'\nЗакройте Minecraft. Устанавливайте только доверенные моды. Убедитесь, что версия игры, загрузчик и зависимости подходят. Nexora не проверяет мод на вредоносный код.'});
