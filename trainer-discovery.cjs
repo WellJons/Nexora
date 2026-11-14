@@ -1,5 +1,5 @@
 // Community tables are downloaded as data solely to preview labels, never executed.
-const {downloadPreview}=require('./ct-preview.cjs');
+const {downloadPreview,downloadTable}=require('./ct-preview.cjs');
 const fs=require('node:fs/promises'),path=require('node:path');
 const SOURCE='sugirukun/Cheat-Engine-Tables',BRANCH='main',MAX=4*1024*1024,TTL=6*60*60*1000;
 const API='https://api.github.com/repos/'+SOURCE+'/git/trees/'+BRANCH+'?recursive=1';
@@ -23,6 +23,6 @@ function createDiscovery({root,match,details,sync,fetcher=fetch,clock=Date.now})
   if(online&&candidates.length===1&&candidates[0].sha){try{candidates[0].preview=await getPreview(candidates[0]);candidates[0].status='preview-only'}catch(e){candidates[0].previewError=String(e.message||e).slice(0,180)}}
   results.set(game.id,result);if(results.size>100)results.delete(results.keys().next().value);return result
  }
- return {prepare,preview:async(id,file)=>{const result=results.get(id),row=result?.candidates.find(c=>c.path===file);if(!row)throw Error('Источник не найден');row.preview=await getPreview(row);row.status='preview-only';delete row.previewError;return result},get:id=>results.get(id)||null,url:(id,file)=>{const row=results.get(id)?.candidates.find(c=>c.path===file);if(!row)throw Error('Источник не найден');return sourceUrl(row.path)}}
+ return {prepare,download:async(id,file)=>{const result=results.get(id),row=result?.candidates.find(c=>c.path===file);if(!row||!row.sha)throw Error('Таблица не найдена в текущем индексе');const bytes=await downloadTable(row,{source:SOURCE,branch:BRANCH,fetcher});return {bytes,source:sourceUrl(row.path),file:row.file}},preview:async(id,file)=>{const result=results.get(id),row=result?.candidates.find(c=>c.path===file);if(!row)throw Error('Источник не найден');row.preview=await getPreview(row);row.status='preview-only';delete row.previewError;return result},get:id=>results.get(id)||null,url:(id,file)=>{const row=results.get(id)?.candidates.find(c=>c.path===file);if(!row)throw Error('Источник не найден');return sourceUrl(row.path)}}
 }
 module.exports={createDiscovery,norm,validateTree,matchRows,sourceUrl};

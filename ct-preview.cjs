@@ -14,13 +14,14 @@ function inspect(bytes){
  for(const m of visible.matchAll(/<Description\s*>([^<]{0,1000})<\/Description\s*>/g)){const name=decode(m[1]);if(!name||seen.has(name))continue;seen.add(name);total++;if(names.length<100)names.push(name)}
  return {names,total,containsScripts:scripts,mode:'preview-only',verifiedCompatibility:false};
 }
-async function downloadPreview(candidate,{source,branch,fetcher=fetch}){
+async function downloadTable(candidate,{source,branch,fetcher=fetch}){
  if(!candidate||!Number.isSafeInteger(candidate.size)||candidate.size<16||candidate.size>LIMIT||!/^[a-f0-9]{40}$/.test(candidate.sha||''))throw Error('Нет подходящей контрольной суммы или таблица слишком большая');
  if(typeof candidate.path!=='string'||!candidate.path.endsWith('.CT')&&!candidate.path.toLowerCase().endsWith('.ct')||candidate.path.split('/').some(x=>!x||x==='.'||x==='..'||/[\x00-\x1f\\]/.test(x)))throw Error('Неверный путь CT');
  const url='https://raw.githubusercontent.com/'+source+'/'+branch+'/'+candidate.path.split('/').map(encodeURIComponent).join('/');
  const r=await fetcher(url,{redirect:'error',signal:AbortSignal.timeout(12000)});if(!r.ok||!r.body)throw Error('Источник CT: HTTP '+r.status);
  const reader=r.body.getReader();let size=0;const parts=[];try{while(true){const {done,value}=await reader.read();if(done)break;size+=value.byteLength;if(size>candidate.size||size>LIMIT)throw Error('Размер CT изменился');parts.push(Buffer.from(value))}}finally{await reader.cancel().catch(()=>{});reader.releaseLock()}
  const bytes=Buffer.concat(parts);if(bytes.length!==candidate.size||blobHash(bytes)!==candidate.sha)throw Error('Контрольная сумма CT не совпадает. Обновите каталог.');
- return {...inspect(bytes),sha:candidate.sha,size};
+ inspect(bytes);return bytes;
 }
-module.exports={inspect,blobHash,downloadPreview,LIMIT};
+async function downloadPreview(candidate,options){const bytes=await downloadTable(candidate,options);return {...inspect(bytes),sha:candidate.sha,size:bytes.length}}
+module.exports={inspect,blobHash,downloadTable,downloadPreview,LIMIT};
