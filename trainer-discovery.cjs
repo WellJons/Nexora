@@ -2,7 +2,7 @@
 const fs=require('node:fs/promises'),path=require('node:path');
 const SOURCE='sugirukun/Cheat-Engine-Tables',BRANCH='main',MAX=4*1024*1024,TTL=6*60*60*1000;
 const API='https://api.github.com/repos/'+SOURCE+'/git/trees/'+BRANCH+'?recursive=1';
-function norm(s){return String(s||'').normalize('NFKC').toLowerCase().replace(/[™®©]/g,'').replace(/[’']/g,'').replace(/[^\p{L}\p{N}]+/gu,' ').trim()}
+function norm(s){return String(s||'').replace(/[™®©]/g,'').normalize('NFKC').toLowerCase().replace(/[’']/g,'').replace(/[^\p{L}\p{N}]+/gu,' ').trim()}
 function validateTree(v){if(!v||v.truncated!==false||!Array.isArray(v.tree)||v.tree.length>20000)throw Error('Неполный индекс источника');return v.tree.filter(x=>x?.type==='blob'&&typeof x.path==='string'&&x.path.length<=350&&/\.ct$/i.test(x.path)&&x.path.split('/').length>=2&&!x.path.split('/').some(p=>!p||p==='.'||p==='..'||/[\x00-\x1f\\]/.test(p))).map(x=>({path:x.path,title:x.path.split('/')[0]}))}
 function matchRows(rows,game){const wanted=norm(game?.name);if(wanted.length<3)return [];return rows.filter(r=>norm(r.title)===wanted).slice(0,12).map(r=>({title:r.title,file:r.path.split('/').at(-1),path:r.path,source:SOURCE,status:'metadata-only'}))}
 function sourceUrl(file){return 'https://github.com/'+SOURCE+'/blob/'+BRANCH+'/'+file.split('/').map(encodeURIComponent).join('/')}
