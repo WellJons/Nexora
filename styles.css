@@ -88,3 +88,5 @@ button:not(:disabled):active{transform:scale(.98)}
 .gk2-editor{margin-top:14px;background:#171820;border:1px solid #4a3d60;border-radius:13px;padding:17px}.gk2-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin:14px 0}.gk2-field{display:flex;flex-direction:column;gap:6px;padding:12px;background:#23212d;border:1px solid #3b344a;border-radius:10px}.gk2-field small{color:var(--muted);font-size:11px}.gk2-field .modinput{width:100%;min-width:0}
 
 .gk2-editor .trainer-command-actions .modinput{width:112px;min-width:70px}.gk2-editor .trainer-switch-row{flex-wrap:wrap}.gk2-editor .trainer-command-actions{align-items:center}
+
+#gk2-live-status{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 13px;margin-bottom:12px;background:#231e32;border:1px solid #594877;border-radius:10px}#gk2-live-status[hidden]{display:none!important}#gk2-live-status strong{font-size:12px}

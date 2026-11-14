@@ -37,7 +37,7 @@ internal sealed class Gk2Live : IDisposable
         if(!rows.ContainsKey("money")||!rows.ContainsKey("energy")||!locator.IsInGameSession()||!locator.IsSameSaveSlot())throw Invalid();return rows;
     }
     private void Write(GameResAtom a,float value){
-        if(mem==null||locator==null||!locator.IsInGameSession()||!locator.IsSameSaveSlot()||!Verify(a)||!mem.WriteFloat(a.Address+GameResLocator.ATOM_VALUE,value))throw Invalid();
+        if(mem==null||locator==null||!locator.IsInGameSession()||!locator.IsSameSaveSlot()||mem.ReadLong(locator.CurrentPlayerData+GameResLocator.PLAYERDATA_GAMERES)!=locator.CurrentGameRes||!Verify(a)||!mem.WriteFloat(a.Address+GameResLocator.ATOM_VALUE,value))throw Invalid();
     }
     internal object Snapshot(){
         if(mem==null)return new{connected=false,pid=0,warning,fields=Array.Empty<object>()};
