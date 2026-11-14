@@ -168,3 +168,5 @@ Thunderstore ZIP можно установить из «Загрузки» в с
 ## 0.33 · CT preview download
 
 Trainer Finder automatically downloads a single exact-title community CT candidate as bounded data (max 2 MiB), checks the expected byte size and Git blob SHA-1 from the index, previews up to 100 unique labels and reports the presence of script fields. Multiple candidates require choosing a preview. A digest verifies consistency with the source index, not trust or game compatibility. No external script, memory address, XML entity, binary or trainer is executed; no CT is written to disk or opened by the shell. In-memory preview cache. Existing GK2 live adapter remains independent. External trainer execution is not implemented.
+
+0.33.1: for an automatically connected GK2 session, loss of the current save during a read-only status poll initiates a bounded reconnect to the original process. No prior freezes or values are restored. Process exit stops reconnect, and the global status lets the user cancel it. Actual game compatibility remains unverified. The stable test candidate 0.32.1 is already published.
