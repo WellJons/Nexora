@@ -1,0 +1,3 @@
+const assert=require('node:assert/strict'),path=require('node:path');
+const root=path.resolve(process.argv[2]||'.'),{createDemo}=require(path.join(root,'training-demo.cjs'));
+(async()=>{const d=createDemo(path.join(root,'native-bin','Nexora.Memory.exe'));try{let s=await d.action('start');assert.equal(s.running,true);assert.equal(s.health,100);s=await d.action('hit');assert.equal(s.health,83);s=await d.action('heal');assert.equal(s.health,100);s=await d.action('gold');assert.equal(s.gold,888888888);assert.equal(s.verified,true);s=await d.action('stop');assert.equal(s.running,false);console.log('Independent training process: scan, refine, write and verification passed.')}finally{d.close()}})().catch(e=>{console.error(e);process.exitCode=1});

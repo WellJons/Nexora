@@ -245,6 +245,7 @@ internal static class Program
     {
         if(!OperatingSystem.IsWindows()||!Environment.Is64BitProcess)return 2;
         if(args.Length==2&&args[0]=="--uninstall-cleanup"&&(args[1]=="keep"||args[1]=="purge-backups"))return Cleanup.Run(args[1]=="purge-backups");
+        if(args.Length==1&&args[0]=="--training-demo")return TrainingDemo.Run();
         if(args.Length==1&&args[0]=="--self-test"){
             if(Marshal.SizeOf<Win.Region>()!=48||Scanner.Encode("int32",int.MaxValue)!=int.MaxValue||Scanner.Encode("float32",1.5)!=BitConverter.SingleToInt32Bits(1.5f))return 3;
             var buffer=new byte[12];BinaryPrimitives.WriteInt32LittleEndian(buffer.AsSpan(4),123456);var list=new List<long>();Scanner.Collect(buffer,12,100,123456,list,10);if(list.Count!=1||list[0]!=104)return 4;
