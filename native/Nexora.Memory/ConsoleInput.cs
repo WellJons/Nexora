@@ -30,12 +30,12 @@ internal static class ConsoleInput
             var inputs=new List<Input>();bool caps=(GetKeyState(0x14)&1)!=0;
             foreach(char c in command){
                 short k=VkKeyScanEx(c,layout);if(k==-1||((k>>8)&~1)!=0)throw new Exception("Unsupported keyboard layout.");
-                bool shift=((k>>8)&1)!=0;if(c is >= 'a' and <= 'z' or >= 'A' and <= 'Z')shift^=caps;
+                bool shift=((k>>8)&1)!=0;if((c>='a'&&c<='z')||(c>='A'&&c<='Z'))shift^=caps;
                 if(shift)inputs.Add(Event(0x10,false));inputs.Add(Event((ushort)(k&255),false));inputs.Add(Event((ushort)(k&255),true));if(shift)inputs.Add(Event(0x10,true));
             }
             // Deliberately no Enter: player verifies the command in the already-open console, then executes.
             if(GetForegroundWindow()!=hwnd||!Win.GetExitCodeProcess(h,out uint code)||code!=259)throw new Exception("Game focus changed.");
-            if(SendInput((uint)inputs.Count,inputs.ToArray(),Marshal.SizeOf<Input>())!=inputs.Count)throw new Exception("Windows did not accept all input. Clear any partial command.");
+            if(SendInput((uint)inputs.Count,inputs.ToArray(),Marshal.SizeOf<Input>())!=(uint)inputs.Count)throw new Exception("Windows did not accept all input. Clear any partial command.");
             return new{sent=true,pid,requiresEnter=true};
         }finally{Win.CloseHandle(h);}
     }
