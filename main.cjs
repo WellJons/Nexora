@@ -75,6 +75,7 @@ safeHandler('launch:start',async(id,shouldLaunch,automatic=false)=>{if(typeof au
 safeHandler('trainer:auto-state',()=>autoTrainer.state());
 safeHandler('trainer:auto-stop',()=>stopAutoTrainer());
 safeHandler('trainer:discover',async(id,online=true,force=false)=>{if(typeof online!=='boolean'||typeof force!=='boolean')throw Error('Неверные настройки поиска');const game=games.find(g=>g.id===id);if(!game)throw Error('Игра не найдена');const result=await trainerDiscovery.prepare(game,{online:online&&!smokeMode,force});return {result,data:refresh(false)}});
+safeHandler('trainer:preview',(id,file)=>{if(smokeMode)throw Error('Сетевой просмотр отключён в CI');return trainerDiscovery.preview(id,file)});
 safeHandler('trainer:source-open',(id,file)=>shell.openExternal(trainerDiscovery.url(id,file)));
 safeHandler('launch:cancel',()=>{if(autoTrainer.pending())stopAutoTrainer();return launchSession.cancel()});
 const vaultRoot=()=>path.join(app.getPath('userData'),'backups');
