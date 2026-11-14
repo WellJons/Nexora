@@ -56,7 +56,7 @@ async function installPlan(api,plan,folder,installed){
 async function checkUpdate(api,m,game,loader){
  validateTarget(game,loader);if(!validId(m.project)||!validId(m.version))throw Error('Неизвестный мод');
  const current=await api.getVersion(m.version);if(current.project_id!==m.project||!compatible(current,game,loader))return {status:'incompatible'};
- const available=newest((await api.getVersions(m.project,game,loader)).filter(x=>compatible(x,game,loader)));
+ const available=newest((await api.getVersions(m.project,game,loader)).filter(x=>x.project_id===m.project&&compatible(x,game,loader)));
  if(!available||available.id===current.id||!(Date.parse(available.date_published)>Date.parse(current.date_published)))return {status:'current'};
  return {status:'available',id:available.id,number:available.version_number,name:available.name};
 }
