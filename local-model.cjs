@@ -33,8 +33,8 @@ function createLocalModel(root,onChange=()=>{}){
  function publish(patch){state={...state,...patch};onChange({...state});return {...state}}
  async function install(){if(operation)throw Error('Установка уже выполняется');if(ready(folder))return publish({ready:true,error:''});
   controller=new AbortController();const signal=controller.signal;publish({installing:true,ready:false,downloaded:0,file:'',error:''});
-  operation=(async()=>{await fs.promises.mkdir(root,{recursive:true});const stage=await fs.promises.mkdtemp(path.join(root,'download-'));let completed=0;const manifest=[];let probe=null;
-   try{for(const entry of FILES){publish({file:entry[0]});const row=await downloadFile(entry,stage,signal,n=>publish({downloaded:completed+n}));completed+=row.size;manifest.push(row)}
+  operation=(async()=>{await fs.promises.mkdir(root,{recursive:true});const stage=await fs.promises.mkdtemp(path.join(root,'download-'));let completed=0,lastProgress=0;const manifest=[];let probe=null;
+   try{for(const entry of FILES){publish({file:entry[0]});const row=await downloadFile(entry,stage,signal,n=>{const now=Date.now();if(now-lastProgress>=300){lastProgress=now;publish({downloaded:completed+n})}});completed+=row.size;publish({downloaded:completed});manifest.push(row)}
     publish({file:'Проверка локального перевода'});probe=createEngine(stage);const text=await probe.translate('Hello world.',signal);if(!/[а-яё]/i.test(text))throw Error('Тест локального перевода не пройден');await probe.close();probe=null;
     await fs.promises.writeFile(path.join(stage,'installed.json'),JSON.stringify({revision:REV,files:manifest}));
     if(signal.aborted)throw Error('Отменено');if(fs.existsSync(folder)){if(ready(folder))return publish({ready:true});throw Error('Повреждённая папка модели: '+folder)}
