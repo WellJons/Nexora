@@ -1,4 +1,4 @@
-const path=require('node:path');const {createSession,createOcr,cropRect,settings,translate}=require('./translator.cjs');const {createBridge}=require('./memory-bridge.cjs');
+const path=require('node:path');const {createSession,createOcr,cropRect,settings,translate}=require('./translator.cjs');const {createBridge}=require('./memory-bridge.cjs');const {profile}=require('./local-model.cjs');
 function createTranslation({BrowserWindow,screen,desktopCapturer,globalShortcut,ipcMain,main,dir,onChange,localModel}){
  let view=null,registered=false,config=null,focusTimer=null,focusPending=null,focusInfo=null,initialPid=null,ready=false;const shortcut='Alt+Shift+T';
  const helper=createBridge(path.join(dir,'native-bin','Nexora.Memory.exe'));
@@ -14,7 +14,7 @@ function createTranslation({BrowserWindow,screen,desktopCapturer,globalShortcut,
    return info;
   })();focusPending=work;try{return await work}catch(e){if(config===current){focusInfo=null;if(view&&!view.isDestroyed())view.hide()}return null}finally{if(focusPending===work)focusPending=null}}
  async function capture(s){
-  if(s.mode==='window'){const before=await focus();if(!before?.foreground||!foreground())return null;const {width,height}=before.bounds,ratio=Math.min(1,1920/width,1080/height);
+  if(s.mode==='window'){const before=await focus();if(!before?.foreground||!foreground())return null;const {width,height}=before.bounds,limit=s.provider==='local'?profile(s.profile):{width:1920,height:1080},ratio=Math.min(1,limit.width/width,limit.height/height);
    const sources=await desktopCapturer.getSources(sourcesOptions({width:Math.max(1,Math.round(width*ratio)),height:Math.max(1,Math.round(height*ratio))}));const image=sources.find(x=>x.id===s.source)?.thumbnail;
    const after=await focus();if(!after?.foreground||!foreground()||['x','y','width','height'].some(k=>before.bounds[k]!==after.bounds[k]))return null;
    if(!image||image.isEmpty())throw Error('Игровое окно недоступно для захвата');const size=image.getSize();if(Math.abs(size.width/size.height-width/height)>.12)throw Error('Формат кадра не совпадает с окном');return {buffer:image.toPNG(),size}
@@ -22,9 +22,9 @@ function createTranslation({BrowserWindow,screen,desktopCapturer,globalShortcut,
   const display=screen.getAllDisplays().find(d=>d.id===s.display);if(!display)throw Error('Выбранный экран отключён');const ratio=Math.min(1,1920/(display.size.width*display.scaleFactor),1080/(display.size.height*display.scaleFactor));const width=Math.round(display.size.width*display.scaleFactor*ratio),height=Math.round(display.size.height*display.scaleFactor*ratio);
   const sources=await desktopCapturer.getSources({types:['screen'],thumbnailSize:{width,height},fetchWindowIcons:false});const image=sources.find(x=>x.display_id===String(s.display))?.thumbnail;if(!image||image.isEmpty())throw Error('Не удалось получить изображение экрана');return image.crop(cropRect(s.region,image.getSize())).toPNG()
  }
- const session=createSession({capture,ocr:createOcr(),send:report,canCapture:foreground,translateFn:(text,config,signal)=>config.provider==='local'?localModel.translate(text,signal):translate(text,config,signal)});
+ const session=createSession({capture,ocr:createOcr(),send:report,canCapture:foreground,translateFn:(text,config,signal)=>config.provider==='local'?localModel.translate(text,signal,config.profile):translate(text,config,signal)});
  const stop=()=>session.stop();
- async function start(value){if(session.state().running||config)throw Error('Перевод уже запущен');const s=settings(value);if(s.provider==='local'&&!localModel.state().ready)throw Error('Сначала скачайте языковой пакет');config=s;
+ async function start(value){if(session.state().running||config)throw Error('Перевод уже запущен');const s=settings(value);if(s.provider==='local'&&!localModel.isReady(s.profile))throw Error('Сначала скачайте языковой пакет');config=s;
   try{let rect;
    if(s.mode==='window'){if(!(await windows()).some(w=>w.id===s.source))throw Error('Выбранное окно больше недоступно');const info=await helper.request('window-info',{handle:s.source.split(':')[1]});if(!info.exists)throw Error('Окно не найдено');initialPid=info.pid;focusInfo=info;rect=screen.screenToDipRect(null,info.bounds)}
    else{const display=screen.getAllDisplays().find(d=>d.id===s.display);if(!display)throw Error('Экран не найден');const r=s.region,a=display.workArea,w=Math.min(760,a.width-20),h=Math.min(152,a.height-20),top=r.y+r.h/2>.5;rect={x:Math.round(a.x+(a.width-w)/2),y:top?a.y+10:a.y+a.height-h-10,width:w,height:h}}

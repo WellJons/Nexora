@@ -25,3 +25,5 @@
 .translatorhero .sourcebar{margin:0}.translatorhero .profilequick select{min-width:220px;max-width:100%;flex:1}.translationstatus .translationtext{max-height:280px;overflow:auto}
 
 .localmodel{padding:18px;border:1px solid #5d497b;background:linear-gradient(130deg,#2d2440,#1c1d27);border-radius:14px;display:flex;flex-direction:column;gap:10px}.localmodel h2{margin:5px 0 8px;font-size:19px}.localmodel button{align-self:flex-start}.localmodel .eyebrow{font-size:10px}.localmodel .memorylive{margin:3px 0}
+
+.translationprofiles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.translateprofile{display:flex;flex-direction:column;gap:9px;text-align:left;background:#1c1c27;border:1px solid #3d374c;border-radius:11px;padding:15px;min-width:0;color:#e9e5f5}.translateprofile.active{background:linear-gradient(145deg,#3a2c52,#272238);border-color:#aa8bef;box-shadow:0 0 0 1px #aa8bef30}.translateprofile strong{font-size:15px}.translateprofile small,.translateprofile p{font-size:11px;color:#bcb6cc;line-height:1.4}.packstatus{color:#bca1ff;font-size:11px;margin-top:auto}@media(max-width:900px){.translationprofiles{grid-template-columns:1fr}}

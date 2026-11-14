@@ -31,3 +31,5 @@ Tesseract.js 6.0.1 and the packaged English traineddata (upstream npm packages) 
 
 - Transformers.js 3.8.1 (Apache-2.0), ONNX Runtime and their bundled dependency notices retained.
 - English→Russian OPUS-MT by Helsinki-NLP: https://huggingface.co/Helsinki-NLP/opus-mt-en-ru (upstream card Apache-2.0). ONNX conversion/quantization by Xenova / ONNX Community: https://huggingface.co/onnx-community/opus-mt-en-ru (model card CC BY 4.0, https://creativecommons.org/licenses/by/4.0/); pinned revision c6967b328d292f9f3d14bab6e9de40f9bd367114, q8 weights. Nexora does not alter these weights, and downloads the card alongside the files. Model separately downloaded by explicit user action; no credentials or game text sent when using the model locally.
+
+0.15 adds the FP32 encoder and merged decoder from the same pinned OPUS-MT ONNX revision and uses their published SHA-256 digests. No new model license or weights modifications.

@@ -59,3 +59,4 @@ jobs:
           node-version: '24'
       - run: npm install --no-audit --no-fund
       - run: node scripts/local-translate-smoke.cjs
+      - run: node scripts/local-translate-smoke.cjs ./local-model.cjs quality
