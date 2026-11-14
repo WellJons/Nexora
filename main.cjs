@@ -29,14 +29,14 @@ const {gameScope,createBridge,numeric}=require('./memory-bridge.cjs');
 const bridge=createBridge(path.join(__dirname,'native-bin','Nexora.Memory.exe'));
 const playBridge=createBridge(path.join(__dirname,'native-bin','Nexora.Memory.exe'));
 const pluginBridge=createBridge(path.join(__dirname,'native-bin','Nexora.Memory.exe'));
-const {createTracker}=require('./game-session.cjs');let tracker;
+const {createTracker}=require('./game-session.cjs');const {saveRecipe}=require('./trainer-profiles.cjs');let tracker;
 let activeGame=null;
 const vault=require('./save-vault.cjs');
 let saveBusy=false;
 async function saveExclusive(fn){if(saveBusy)throw Error('Дождитесь завершения операции с сохранениями');saveBusy=true;try{return await fn()}finally{saveBusy=false}}
 let managerBusy=false;
 async function exclusive(fn){if(managerBusy)throw Error('Дождитесь завершения другой операции с модами');managerBusy=true;try{return await fn()}finally{managerBusy=false}}
-let win,state={manual:[],favorites:[],history:[],backups:[],downloads:[],installedMods:[],profiles:[],launchLog:[],playSessions:[]},games=[];
+let win,state={manual:[],favorites:[],history:[],backups:[],downloads:[],installedMods:[],profiles:[],launchLog:[],playSessions:[],trainerRecipes:[]},games=[];
 const config=()=>path.join(app.getPath('userData'),'library.json');
 function persist(){const p=config();fs.mkdirSync(path.dirname(p),{recursive:true});fs.writeFileSync(p+'.tmp',JSON.stringify(state,null,2));fs.renameSync(p+'.tmp',p)}
 function load(){try{const v=JSON.parse(fs.readFileSync(config(),'utf8'));for(const key of Object.keys(state))if(Array.isArray(v[key]))state[key]=v[key]}catch{}try{const old=JSON.parse(fs.readFileSync(path.join(app.getPath('userData'),'backup-index.json'),'utf8'));if(Array.isArray(old)){const ids=new Set(state.backups.map(b=>b.id));for(const b of old)if(b&&typeof b.id==='string'&&!ids.has(b.id)){state.backups.push(b);ids.add(b.id)}}}catch{}}
@@ -47,7 +47,7 @@ function steamRoots(){
  return [...new Set(roots)];
 }
 function gogGames(){if(process.platform!=='win32')return [];const result=[];for(const hive of ['HKLM\\SOFTWARE\\GOG.com\\Games','HKLM\\SOFTWARE\\WOW6432Node\\GOG.com\\Games']){try{result.push(...discoverGog(execFileSync('reg.exe',['query',hive,'/s'],{encoding:'utf8',windowsHide:true,timeout:3000,maxBuffer:8*1024*1024})))}catch{}}return result}
-function refresh(scan=true){if(scan){const all=[...steamRoots().flatMap(discoverSteam),...gogGames()];if(process.platform==='win32'&&process.env.ProgramData)all.push(...discoverEpic(path.join(process.env.ProgramData,'Epic','EpicGamesLauncher','Data','Manifests')));const manual=state.manual.map(g=>({...g,installed:typeof g.path==='string'&&fs.existsSync(g.path)}));games=mergeGames(all,manual)}return {games,favorites:state.favorites,history:state.history,backups:state.backups,downloads:state.downloads,installedMods:state.installedMods,profiles:state.profiles,launchLog:state.launchLog}}
+function refresh(scan=true){if(scan){const all=[...steamRoots().flatMap(discoverSteam),...gogGames()];if(process.platform==='win32'&&process.env.ProgramData)all.push(...discoverEpic(path.join(process.env.ProgramData,'Epic','EpicGamesLauncher','Data','Manifests')));const manual=state.manual.map(g=>({...g,installed:typeof g.path==='string'&&fs.existsSync(g.path)}));games=mergeGames(all,manual)}return {games,favorites:state.favorites,history:state.history,backups:state.backups,downloads:state.downloads,installedMods:state.installedMods,profiles:state.profiles,launchLog:state.launchLog,trainerRecipes:state.trainerRecipes}}
 function safeHandler(name,fn){ipcMain.handle(name,async(e,...args)=>{if(!win||e.sender!==win.webContents||e.senderFrame!==win.webContents.mainFrame)throw Error('Invalid origin');return fn(...args)})}
 safeHandler('play:state',()=>tracker.state());
 safeHandler('play:processes',async id=>{if(tracker.state().active||tracker.state().busy)throw Error('Завершите текущую сессию');const g=games.find(g=>g.id===id&&g.installed);return playBridge.request('list',gameScope(g))});
@@ -124,6 +124,8 @@ safeHandler('profile:save',(id,value)=>{if(!games.some(g=>g.id===id))throw Error
 safeHandler('library:folder',async id=>{const g=games.find(x=>x.id===id&&x.installed);if(!g)throw Error('Игра не установлена');const folder=g.kind==='local'?path.dirname(g.path):g.path;const error=await shell.openPath(folder);if(error)throw Error(error);return true});
 function scopeOf(id){return gameScope(games.find(g=>g.id===id))}
 function attached(){if(activeGame===null)throw Error('Выберите запущенную игру');}
+safeHandler('trainer:save-recipe',(gameId,value)=>{if(!games.some(g=>g.id===gameId))throw Error('Игра не найдена');state.trainerRecipes=saveRecipe(state.trainerRecipes,gameId,value);persist();return refresh(false)});
+safeHandler('trainer:delete-recipe',(gameId,id)=>{state.trainerRecipes=state.trainerRecipes.filter(x=>!(x.gameId===gameId&&x.id===id));persist();return refresh(false)});
 safeHandler('memory:list',id=>bridge.request('list',scopeOf(id)));
 safeHandler('memory:attach',async(id,pid)=>{
  if(!Number.isSafeInteger(pid)||pid<=4)throw Error('Некорректный процесс');

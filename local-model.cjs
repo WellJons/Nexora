@@ -70,14 +70,14 @@ function createLocalModel(root,onChange=()=>{}){
   try{
    await close();const rootStat=await fs.promises.lstat(root);if(!rootStat.isDirectory()||rootStat.isSymbolicLink())throw Error('Недопустимая папка моделей');
    const stat=await fs.promises.lstat(target);if(!stat.isDirectory()||stat.isSymbolicLink())throw Error('Недопустимая папка пакета');
-   if(path.resolve(await fs.promises.realpath(target)).toLowerCase()!==path.resolve(target).toLowerCase())throw Error('Путь пакета перенаправлен');
-   const paths=protectedPaths.filter(x=>typeof x==='string'&&path.isAbsolute(x)).map(x=>path.resolve(x).toLowerCase());
+   const canonicalRoot=await fs.promises.realpath(root),canonicalTarget=await fs.promises.realpath(target);if(path.resolve(canonicalTarget).toLowerCase()!==path.join(canonicalRoot,path.basename(target)).toLowerCase())throw Error('Путь пакета перенаправлен');
+   const paths=[];for(const p of protectedPaths.filter(x=>typeof x==='string'&&path.isAbsolute(x))){paths.push(path.resolve(p).toLowerCase());try{paths.push((await fs.promises.realpath(p)).toLowerCase())}catch{}}
    const inside=(a,b)=>a===b||b.startsWith(a+path.sep);
-   const targetKey=path.resolve(target).toLowerCase();if(paths.some(p=>inside(p,targetKey)||inside(targetKey,p)))throw Error('В пакете обнаружен пользовательский путь. Переместите свои файлы перед удалением.');
+   const targetKey=path.resolve(target).toLowerCase();if(paths.some(p=>[targetKey,canonicalTarget.toLowerCase()].some(t=>inside(p,t)||inside(t,p))))throw Error('В пакете обнаружен пользовательский путь. Переместите свои файлы перед удалением.');
    const onnx=path.join(target,'onnx');try{const s=await fs.promises.lstat(onnx);if(!s.isDirectory()||s.isSymbolicLink())throw Error('Папка ONNX перенаправлена')}catch(e){if(e.code!=='ENOENT')throw e}
    for(const [name] of [...entries,['installed.json']]){const p=path.join(target,name);try{const s=await fs.promises.lstat(p);if(!s.isFile()||s.isSymbolicLink())throw Error('Неизвестный объект в пакете: '+name);await fs.promises.unlink(p)}catch(e){if(e.code!=='ENOENT')throw e}}
    for(const dir of [onnx,target])try{await fs.promises.rmdir(dir)}catch(e){if(!['ENOENT','ENOTEMPTY','EEXIST'].includes(e.code))throw e}
-   publish({file:'Пакет удалён',downloaded:0});
+   publish({file:'Пакет удалён',downloaded:0,error:fs.existsSync(target)?'Неизвестные файлы сохранены в '+target+'. Переместите их перед повторной установкой.':''});
   }catch(e){publish({error:String(e.message||e).slice(0,250)});throw e}finally{removing=false;publish({})}return state()
  }
  return {state,install,cancel,translate,close,remove,isReady:id=>ready(folder(profile(id).pack),profile(id).pack)};
