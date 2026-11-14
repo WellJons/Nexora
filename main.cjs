@@ -127,7 +127,7 @@ safeHandler('translation:displays',()=>translation.displays());
 safeHandler('translation:state',()=>translation.state());
 safeHandler('translation:start',async value=>{
  const config=translationSettings(value);
- const detail=config.provider==='ocr'?'Распознавание выполняется локально.':'Распознанный английский текст выбранной области будет передаваться сервису '+(config.provider==='deepl'?'DeepL':'MyMemory')+'. Изображения не отправляются. Не оставляйте в области личные данные; сервис имеет собственные правила и лимиты.';
+ const detail=config.provider==='ocr'?'Распознавание выполняется локально.':'Распознанный английский текст выбранной области будет передаваться сервису '+(config.provider==='deepl'?'DeepL':'MyMemory')+'. Изображения не отправляются. Не оставляйте в области личные данные; сервис имеет собственные правила и лимиты. Захват следует за экраном, а не за процессом игры: остановите его перед переключением на другие приложения.';
  const c=await dialog.showMessageBox(win,{type:'question',title:'Экранный перевод',message:'Начать захват выбранной области экрана?',detail:detail+'\nПереключитесь в игру. Сессия ограничена 30 минутами; остановить можно из Nexora.',buttons:['Отмена','Начать'],defaultId:0,cancelId:0});
  if(c.response!==1)return null;return translation.start(config);
 });

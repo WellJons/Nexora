@@ -21,7 +21,7 @@ function createSession({capture,ocr,send,canCapture=()=>true,translateFn=transla
  function schedule(s){if(active===s)timer=setTimeout(()=>{timer=null;job=tick(s).finally(()=>{job=null;if(active===s)schedule(s)})},s.config.interval)}
  async function tick(s){try{
   if(clock()-s.start>=MAX_SESSION){stop('Сессия завершена по лимиту времени');return}
-  if(!canCapture()){publish({status:'Пауза: вернитесь в игру'});return}
+  if(!canCapture()){if(state.status!=='Пауза: вернитесь в игру')publish({status:'Пауза: вернитесь в игру',original:'',translation:''});s.lastHash=null;s.lastText='';return}
   const began=clock(),image=await capture(s.config);if(active!==s||!image)return;
   const hash=createHash('sha256').update(image).digest('hex');if(hash===s.lastHash)return;s.lastHash=hash;
   const result=await ocr.recognize(image);if(active!==s)return;const text=normalize(result.text);

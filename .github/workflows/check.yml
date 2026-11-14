@@ -36,6 +36,8 @@ jobs:
           if (!(Test-Path dist/Nexora-win32-x64/Nexora.exe)) { throw 'Executable missing' }
           if (!(Test-Path dist/Nexora-win32-x64/resources/app/node_modules/systeminformation/package.json)) { throw 'Runtime dependency missing' }
           node -e "require('./dist/Nexora-win32-x64/resources/app/node_modules/systeminformation'); console.log('Runtime dependency loads')"
+          node scripts/ocr-smoke.cjs ./dist/Nexora-win32-x64/resources/app/translator.cjs
+          if ($LASTEXITCODE -ne 0) { throw 'Local OCR self-test failed' }
           & ./dist/Nexora-win32-x64/resources/app/native-bin/Nexora.Memory.exe --self-test
           if ($LASTEXITCODE -ne 0) { throw 'Native self-test failed' }
       - uses: actions/upload-artifact@v4
