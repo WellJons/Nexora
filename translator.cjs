@@ -28,14 +28,14 @@ function createSession({capture,ocr,send,canCapture=()=>true,translateFn=transla
  function schedule(s){if(active===s)timer=setTimeout(()=>{timer=null;job=tick(s).finally(()=>{job=null;if(active===s)schedule(s)})},s.config.interval)}
  async function tick(s){try{
   if(clock()-s.start>=MAX_SESSION){stop('Сессия завершена по лимиту времени');return}
-  if(!canCapture()){if(state.status!=='Пауза: вернитесь в игру')publish({status:'Пауза: вернитесь в игру',original:'',translation:'',labels:[]});s.lastHash=null;s.lastText='';return}
+  if(!canCapture()){if(state.status!=='Пауза: вернитесь в игру')publish({status:'Пауза: вернитесь в игру',original:'',translation:'',labels:[]});s.lastHash=null;s.lastText='';s.blocks=null;s.more=false;return}
   const began=clock(),frame=await capture(s.config);if(active!==s||!frame||!canCapture())return;
   const image=Buffer.isBuffer(frame)?frame:frame.buffer,spatial=s.config.mode==='window';
-  const hash=createHash('sha256').update(image).digest('hex');if(hash===s.lastHash&&!s.more)return;s.lastHash=hash;
-  const result=await ocr.recognize(image,spatial);if(active!==s||!canCapture())return;
+  const hash=createHash('sha256').update(image).digest('hex'),same=hash===s.lastHash;if(same&&!s.more)return;
+  const reused=spatial&&same&&Array.isArray(s.blocks);const result=reused?null:await ocr.recognize(image,spatial);if(active!==s||!canCapture())return;s.lastHash=hash;
   if(spatial){
-   const blocks=textBlocks(result.blocks,frame.size),labels=[];let fresh=0;s.more=false;
-   publish({ocrCount:state.ocrCount+1,elapsed:clock()-began,status:'Обработка игрового окна…'});
+   const blocks=reused?s.blocks:textBlocks(result.blocks,frame.size),labels=[];s.blocks=blocks;let fresh=0;s.more=false;
+   publish({ocrCount:state.ocrCount+(reused?0:1),elapsed:clock()-began,status:'Обработка игрового окна…',...(reused?{}:{labels:[]})});
    for(const b of blocks){
     if(active!==s||!canCapture())return;
     let out=s.cache.get(b.text);
@@ -45,7 +45,7 @@ function createSession({capture,ocr,send,canCapture=()=>true,translateFn=transla
      if(s.config.provider!=='ocr'){fresh++;s.chars+=b.text.length;publish({requests:state.requests+1})}
      out=await translateFn(b.text,s.config,s.abort.signal);if(active!==s||!canCapture())return;s.cache.set(b.text,out);if(s.cache.size>512)s.cache.delete(s.cache.keys().next().value)
     }
-    labels.push({...b,translation:out});
+    labels.push({...b,translation:out});if(fresh>0)publish({labels:[...labels]});
    }
    s.failures=0;publish({labels,original:labels.map(x=>x.text).join('\n'),translation:labels.map(x=>x.translation).join('\n'),status:labels.length?'Переведено блоков: '+labels.length:'Ожидание читаемого текста',elapsed:clock()-began});return
   }
